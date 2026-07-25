@@ -13,95 +13,8 @@ interface LogEntry {
   expanded?: boolean
 }
 
-const allLogs: LogEntry[] = [
-  {
-    id: 'L001',
-    timestamp: '14:14:32',
-    level: 'success',
-    message: 'Trip plan generated successfully',
-    source: 'TripPlanner',
-    details: [
-      '✓ FlightSearch completed in 1.2s — 12 results',
-      '✓ HotelSearch completed in 0.8s — 8 results',
-      '✓ ItineraryBuilder completed in 0.6s',
-      '✓ BudgetCalculator: $7,200 estimated',
-      '→ Response delivered to user in 2.6s total',
-    ],
-  },
-  {
-    id: 'L002',
-    timestamp: '14:09:15',
-    level: 'running',
-    message: 'Drafting Q3 investor update email',
-    source: 'EmailComposer',
-    details: [
-      '✓ GoogleSheets: retrieved Q3 metrics',
-      '✓ DataAnalyzer: summarized key KPIs',
-      '⟳ GPT-4o: generating email draft...',
-    ],
-  },
-  {
-    id: 'L003',
-    timestamp: '14:02:44',
-    level: 'running',
-    message: 'Competitor pricing analysis in progress',
-    source: 'WebScraper',
-    details: [
-      '✓ Scraping competitor #1: Linear.app',
-      '✓ Scraping competitor #2: Asana.com',
-      '⟳ Extracting pricing tables...',
-    ],
-  },
-  {
-    id: 'L004',
-    timestamp: '09:41:12',
-    level: 'success',
-    message: 'Q3 financial report exported to Google Drive',
-    source: 'ReportExporter',
-    details: [
-      '✓ Connected to Google Drive',
-      '✓ Generated PDF — 14 pages',
-      '✓ Uploaded to /Reports/Q3-2025.pdf',
-      '✓ Shared with 3 recipients',
-    ],
-  },
-  {
-    id: 'L005',
-    timestamp: '09:18:03',
-    level: 'warning',
-    message: 'Zoom API rate limit approaching (85% of quota)',
-    source: 'ZoomConnector',
-    details: ['Current usage: 850/1000 requests/hour', 'Reset at 10:18 AM EST', 'Consider batching requests'],
-  },
-  {
-    id: 'L006',
-    timestamp: '08:55:20',
-    level: 'success',
-    message: 'Morning standup reminder sent to Slack #engineering',
-    source: 'SlackBot',
-    details: ['Channel: #engineering', 'Recipients: 6 members', 'Thread created for async updates'],
-  },
-  {
-    id: 'L007',
-    timestamp: '08:30:00',
-    level: 'info',
-    message: 'AutoMateAI session initialized',
-    source: 'System',
-    details: ['Model: claude-sonnet-4-6', 'Tools loaded: 10', 'Memory: 6 entries loaded', 'Context window: 200k tokens'],
-  },
-  {
-    id: 'L008',
-    timestamp: 'Yesterday 17:42:11',
-    level: 'error',
-    message: 'Failed to access private GitHub repo (permission denied)',
-    source: 'GitHubConnector',
-    details: [
-      '✗ Repository: org/private-repo',
-      '✗ Error: 403 Forbidden — insufficient token scope',
-      '→ Action: Re-authorize GitHub with repo:read scope',
-    ],
-  },
-]
+// Populated once the backend is connected.
+const allLogs: LogEntry[] = []
 
 const levelConfig = {
   success: { color: '#10b981', bg: '#10b98115', border: '#10b98125', icon: CheckCircle, label: 'Success' },
@@ -112,7 +25,7 @@ const levelConfig = {
 }
 
 export default function Logs() {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(['L002']))
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<string>('all')
 
   const filtered = allLogs.filter(l => filter === 'all' || l.level === filter)
@@ -206,6 +119,19 @@ export default function Logs() {
         </div>
 
         {/* Log entries */}
+        {filtered.length === 0 ? (
+          <div
+            className="glass"
+            style={{
+              padding: '40px 24px',
+              textAlign: 'center',
+              fontSize: 13,
+              color: '#52525b',
+            }}
+          >
+            No logs yet. Waiting for backend connection.
+          </div>
+        ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {filtered.map((log, i) => {
             const cfg = levelConfig[log.level]
@@ -354,6 +280,7 @@ export default function Logs() {
             )
           })}
         </div>
+        )}
       </div>
     </div>
   )

@@ -105,34 +105,18 @@ function ProfileSection() {
             width: 60,
             height: 60,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #a855f7, #ec4899)',
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.14)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 22,
-            fontWeight: 700,
-            color: 'white',
-            boxShadow: '0 0 20px rgba(168,85,247,0.4)',
           }}
         >
-          N
+          <User size={24} color="white" />
         </div>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 600, color: 'white' }}>Nikita</div>
-          <div style={{ fontSize: 13, color: '#52525b' }}>nikita@company.com</div>
-          <div
-            style={{
-              fontSize: 11,
-              color: '#a855f7',
-              marginTop: 4,
-              background: 'rgba(168,85,247,0.12)',
-              display: 'inline-block',
-              padding: '2px 8px',
-              borderRadius: 6,
-            }}
-          >
-            Pro Plan
-          </div>
+          <div style={{ fontSize: 16, fontWeight: 600, color: 'white' }}>No account connected</div>
+          <div style={{ fontSize: 13, color: '#52525b' }}>Waiting for backend connection.</div>
         </div>
         <button className="btn-glass" style={{ marginLeft: 'auto', padding: '8px 14px', fontSize: 12 }}>
           Edit Profile
@@ -140,7 +124,8 @@ function ProfileSection() {
       </div>
       <SettingRow label="Display Name" desc="How AutoMateAI addresses you">
         <input
-          defaultValue="Nikita"
+          defaultValue=""
+          placeholder="Your name"
           style={{
             background: 'rgba(255,255,255,0.06)',
             border: '1px solid rgba(255,255,255,0.1)',
@@ -263,9 +248,9 @@ function APIKeysSection() {
   const [show, setShow] = useState<Record<string, boolean>>({})
 
   const keys = [
-    { name: 'Anthropic API Key', placeholder: 'sk-ant-...', set: true },
+    { name: 'Anthropic API Key', placeholder: 'sk-ant-...', set: false },
     { name: 'OpenAI API Key', placeholder: 'sk-...', set: false },
-    { name: 'Serper API Key', placeholder: 'Serper search key', set: true },
+    { name: 'Serper API Key', placeholder: 'Serper search key', set: false },
   ]
 
   return (
