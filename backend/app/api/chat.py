@@ -1,16 +1,24 @@
 from fastapi import APIRouter
-from app.schemas.chat import ChatRequest
+
 from app.graph.workflow import graph
 
+from pydantic import BaseModel
+
 router = APIRouter()
+
+
+class ChatRequest(BaseModel):
+    message: str
 
 
 @router.post("/chat")
 def chat(request: ChatRequest):
 
-    result = graph.invoke({
+    state = {
 
         "user_input": request.message,
+
+        "user_id": None,
 
         "task_type": "",
 
@@ -18,8 +26,11 @@ def chat(request: ChatRequest):
 
         "current_agent": "",
 
-        "final_response": ""
+        "agent_outputs": {},
 
-    })
+        "final_response": ""
+    }
+
+    result = graph.invoke(state)
 
     return result

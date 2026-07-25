@@ -1,17 +1,22 @@
-from app.core.llm import llm
-from app.schemas.router import RouterResponse
+from app.agents.base_agent import BaseAgent
+from app.schemas.router import RouterResponse   # <-- THIS IMPORT IS MISSING
 
 
-class RouterAgent:
+class RouterAgent(BaseAgent):
 
     def __init__(self):
-        self.router_llm = llm.with_structured_output(RouterResponse)
+        super().__init__()
 
-    def route(self, user_input: str) -> RouterResponse:
+        self.router = self.llm.with_structured_output(
+            RouterResponse
+        )
+
+    def route(self, user_input: str):
 
         prompt = f"""
-Classify the user's request into exactly one of these categories:
+Classify the user's request into one category.
 
+Categories:
 travel
 coding
 shopping
@@ -26,4 +31,4 @@ User Request:
 {user_input}
 """
 
-        return self.router_llm.invoke(prompt)
+        return self.router.invoke(prompt)

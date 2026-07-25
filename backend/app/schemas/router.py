@@ -3,6 +3,7 @@ from pydantic import BaseModel
 
 
 class RouterResponse(BaseModel):
+
     task_type: Literal[
         "travel",
         "coding",

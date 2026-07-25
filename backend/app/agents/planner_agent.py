@@ -1,40 +1,28 @@
-from app.core.llm import llm
-from app.schemas.planner import PlannerResponse
+from app.agents.base_agent import BaseAgent
+from app.schemas.planner import PlannerResponse  # <-- REQUIRED IMPORT
 
 
-class PlannerAgent:
+class PlannerAgent(BaseAgent):
 
     def __init__(self):
+        super().__init__()
 
-        self.planner = llm.with_structured_output(
+        self.planner = self.llm.with_structured_output(
             PlannerResponse
         )
 
-    def plan(
-        self,
-        user_input: str,
-        task_type: str
-    ) -> PlannerResponse:
+    def plan(self, user_input: str, task_type: str):
 
         prompt = f"""
 You are an AI Planning Agent.
 
-Task Category:
+Task Type:
 {task_type}
 
 User Request:
 {user_input}
 
-Your job is to create an execution plan.
-
-Rules:
-
-1. Understand the user's goal.
-2. Estimate complexity.
-3. Decide which AI agents are needed.
-4. Create logical execution steps.
-
-Keep steps concise.
+Create an execution plan.
 """
 
         return self.planner.invoke(prompt)

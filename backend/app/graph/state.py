@@ -1,4 +1,4 @@
-from typing import TypedDict, List, Dict, Optional
+from typing import TypedDict, List, Dict, Optional , Any
 
 
 class AgentState(TypedDict):
@@ -18,7 +18,9 @@ class AgentState(TypedDict):
     current_agent: str
 
     # Outputs from every agent
-    agent_outputs: Dict[str, str]
+    agent_outputs: Dict[str, Any]
+    supervisor_tasks: List[Dict[str, str]]
+
 
     # Final answer returned to frontend
-    final_response: str
+    final_response: Any
