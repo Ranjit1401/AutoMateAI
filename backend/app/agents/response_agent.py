@@ -1,49 +1,234 @@
+from datetime import datetime
+
 from app.agents.base_agent import BaseAgent
 
 
 class ResponseAgent(BaseAgent):
 
+    @staticmethod
+    def format_action(action: str) -> str:
+        """
+        Convert machine-friendly action names into readable text.
+        Example:
+        book_flight_from_Mumbai_to_Goa
+        ->
+        Book Flight From Mumbai To Goa
+        """
+        return action.replace("_", " ").title()
+
+    @staticmethod
+    def format_datetime(value: str) -> str:
+        """
+        Convert ISO datetime into a readable format.
+        Example:
+        2026-08-05 22:10
+        ->
+        05 Aug 2026, 10:10 PM
+        """
+        try:
+            return datetime.fromisoformat(value).strftime(
+                "%d %b %Y, %I:%M %p"
+            )
+        except Exception:
+            return value
+
     def generate(self, state):
 
-        execution = state["agent_outputs"]["execution"]
+        execution = state.get("agent_outputs", {}).get("execution", [])
 
         if not execution:
             return "No results were generated."
 
-        travel = execution[0]["result"]["travel"]
-        weather = execution[0]["result"]["weather"]
+        travel_result = None
+        research_result = None
+
+        for item in execution:
+
+            result = item.get("result", {})
+
+            if "travel" in result:
+                travel_result = result
+
+            if "research" in result:
+                research_result = result
+
+        if not travel_result:
+            return "Travel information could not be generated."
+
+        travel = travel_result.get("travel", {})
+        weather = travel_result.get("weather", {})
+        flights = travel_result.get("flights", [])
+        hotels = travel_result.get("hotels", [])
 
         lines = []
 
-        lines.append("✅ Your travel plan is ready!\n")
+        ##########################################################
+        # HEADER
+        ##########################################################
 
-        lines.append(f"📍 From: {travel['source']}")
-        lines.append(f"🏝 Destination: {travel['destination']}")
-        lines.append(f"💰 Budget: ₹{travel['budget']}")
-        lines.append(f"👥 Travellers: {travel['travellers']}")
-
+        lines.append("✅ Your travel plan is ready!")
         lines.append("")
 
-        lines.append("🌦 Current Weather")
+        lines.append(f"📍 Source: {travel.get('source', 'N/A')}")
+        lines.append(f"🏝 Destination: {travel.get('destination', 'N/A')}")
+        lines.append(f"💰 Budget: ₹{travel.get('budget', 'N/A')}")
+        lines.append(f"👥 Travellers: {travel.get('travellers', 'N/A')}")
 
-        lines.append(
-            f"{weather['condition']}, "
-            f"{weather['temperature']}°C"
-        )
+        ##########################################################
+        # WEATHER
+        ##########################################################
 
-        lines.append(
-            f"Humidity: {weather['humidity']}%"
-        )
+        if weather:
 
-        lines.append(
-            f"Wind Speed: {weather['wind_speed']} m/s"
-        )
+            lines.append("")
+            lines.append("🌦 Current Weather")
+
+            lines.append(
+                f"Condition: {weather.get('condition', 'N/A')}"
+            )
+
+            lines.append(
+                f"Temperature: {weather.get('temperature', 'N/A')}°C"
+            )
+
+            lines.append(
+                f"Humidity: {weather.get('humidity', 'N/A')}%"
+            )
+
+            lines.append(
+                f"Wind Speed: {weather.get('wind_speed', 'N/A')} m/s"
+            )
+
+        ##########################################################
+        # FLIGHTS
+        ##########################################################
+
+        if flights:
+
+            lines.append("")
+            lines.append("✈ Available Flights")
+
+            for flight in flights:
+
+                departure = self.format_datetime(
+                    flight.get("departure", "")
+                )
+
+                arrival = self.format_datetime(
+                    flight.get("arrival", "")
+                )
+
+                lines.append("")
+
+                lines.append(
+                    f"Airline : {flight.get('airline', 'N/A')}"
+                )
+
+                lines.append(
+                    f"Flight  : {flight.get('flight_number', 'N/A')}"
+                )
+
+                lines.append(
+                    f"Price   : ₹{flight.get('price', 'N/A')}"
+                )
+
+                lines.append(
+                    f"Departure: {departure}"
+                )
+
+                lines.append(
+                    f"Arrival  : {arrival}"
+                )
+
+                lines.append(
+                    f"Duration : {flight.get('duration', 'N/A')} mins"
+                )
+
+        ##########################################################
+        # HOTELS
+        ##########################################################
+
+        if hotels:
+
+            lines.append("")
+            lines.append("🏨 Recommended Hotels")
+
+            for hotel in hotels:
+
+                lines.append("")
+
+                lines.append(
+                    f"Hotel : {hotel.get('name', 'N/A')}"
+                )
+
+                lines.append(
+                    f"Rating: ⭐ {hotel.get('rating', 'N/A')}"
+                )
+
+                lines.append(
+                    f"Price : {hotel.get('price', 'Price unavailable')}"
+                )
+
+        ##########################################################
+        # PLANNED TASKS
+        ##########################################################
 
         lines.append("")
-
         lines.append("📋 Planned Tasks")
 
         for item in execution:
-            lines.append(f"• {item['task']['action']}")
+
+            action = self.format_action(
+                item["task"]["action"]
+            )
+
+            lines.append(f"• {action}")
+
+        ##########################################################
+        # RESEARCH
+        ##########################################################
+
+        if research_result:
+
+            research = research_result["research"]
+
+            top_places = research.get(
+                "top_places",
+                []
+            )
+
+            if top_places:
+
+                lines.append("")
+                lines.append("📍 Top Places to Visit")
+
+                for place in top_places:
+                    lines.append(f"• {place}")
+
+            foods = research.get(
+                "local_food",
+                []
+            )
+
+            if foods:
+
+                lines.append("")
+                lines.append("🍽 Must-Try Local Food")
+
+                for food in foods:
+                    lines.append(f"• {food}")
+
+            lines.append("")
+            lines.append(
+                f"🗓 Best Time to Visit: "
+                f"{research.get('best_time', 'N/A')}"
+            )
+
+        ##########################################################
+        # FOOTER
+        ##########################################################
+
+        lines.append("")
+        lines.append("🎉 Have a safe and enjoyable journey!")
 
         return "\n".join(lines)

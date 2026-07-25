@@ -1,19 +1,14 @@
-from typing import List, Literal
+from typing import Literal
 from pydantic import BaseModel
 
 
 class AgentTask(BaseModel):
-    """
-    A single task assigned by the Supervisor.
-    """
-
-    agent: Literal["travel"]
+    agent: Literal[
+        "travel",
+        "research"
+    ]
     action: str
 
 
 class SupervisorResponse(BaseModel):
-    """
-    Supervisor response containing all assigned tasks.
-    """
-
-    tasks: List[AgentTask]
+    tasks: list[AgentTask]

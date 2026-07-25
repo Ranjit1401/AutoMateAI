@@ -9,17 +9,24 @@ class SupervisorAgent(BaseAgent):
 
     def decide(self, goal: str, steps: list[str]) -> SupervisorResponse:
         """
-        For the MVP, every planner step is assigned to the Travel Agent.
+        Assign planner steps to the appropriate agent.
         """
 
         tasks = []
 
         for step in steps:
+
+            if "activities" in step.lower():
+                agent = "research"
+            else:
+                agent = "travel"
+
             tasks.append(
                 AgentTask(
-                    agent="travel",
+                    agent=agent,
                     action=step
                 )
             )
 
+        # IMPORTANT: Return the response
         return SupervisorResponse(tasks=tasks)

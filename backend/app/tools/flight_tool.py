@@ -1,25 +1,78 @@
-from app.tools.base_tool import BaseTool
+from datetime import date, timedelta
+
+from app.providers.serpapi_provider import serp_provider
+from app.tools.base import BaseTool
+
+
+AIRPORTS = {
+    "Mumbai": "BOM",
+    "Goa": "GOI",
+    "Delhi": "DEL",
+    "Bangalore": "BLR",
+    "Hyderabad": "HYD",
+    "Chennai": "MAA",
+}
 
 
 class FlightTool(BaseTool):
 
-    def run(
+    name = "flight"
+
+    def execute(
         self,
-        source: str,
-        destination: str,
-        budget: int
+        source,
+        destination,
     ):
 
-        # Mock Data
+        departure = (
+            date.today() + timedelta(days=7)
+        ).isoformat()
 
-        return {
+        try:
 
-            "airline": "IndiGo",
+            data = serp_provider.search_flights(
+                departure_id=AIRPORTS[source],
+                arrival_id=AIRPORTS[destination],
+                outbound_date=departure,
+            )
 
-            "price": 5200,
+            flights = []
 
-            "departure": "09:30",
+            all_flights = (
+                data.get("best_flights", [])
+                + data.get("other_flights", [])
+            )
 
-            "arrival": "11:15"
+            for offer in all_flights[:5]:
 
-        }
+                segment = offer["flights"][0]
+
+                flights.append({
+
+                    "airline":
+                        segment["airline"],
+
+                    "flight_number":
+                        segment["flight_number"],
+
+                    "departure":
+                        segment["departure_airport"]["time"],
+
+                    "arrival":
+                        segment["arrival_airport"]["time"],
+
+                    "duration":
+                        offer["total_duration"],
+
+                    "price":
+                        offer.get("price", "N/A")
+
+                })
+
+            return flights
+
+        except Exception as e:
+
+            print("Flight Tool:", e)
+
+            return []

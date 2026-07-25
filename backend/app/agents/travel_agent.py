@@ -24,24 +24,30 @@ User Request:
 
         return self.parser.invoke(prompt)
 
-    def execute(self, action: str, state: dict):
-        """
-        Execute travel task.
-        """
+    def execute(self, action: str, state):
 
-        # IMPORTANT:
-        # Use the original user request instead of the planner step.
-        original_request = state["user_input"]
-
-        travel = self.extract(original_request)
+        travel = self.extract(state["user_input"])
 
         weather = tool_executor.execute(
             "weather",
-            city=travel.destination
+            city=travel.destination,
+        )
+        
+        flights = tool_executor.execute(
+            "flight",
+            source=travel.source,
+            destination=travel.destination,
+        )
+        
+        hotels = tool_executor.execute(
+            "hotel",
+            destination=travel.destination,
         )
 
         return {
             "action": action,
             "travel": travel.model_dump(),
             "weather": weather,
+            "flights": flights,
+            "hotels": hotels
         }

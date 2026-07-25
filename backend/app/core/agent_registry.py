@@ -3,6 +3,9 @@ from app.agents.planner_agent import PlannerAgent
 from app.agents.supervisor_agent import SupervisorAgent
 from app.agents.travel_agent import TravelAgent
 from app.agents.response_agent import ResponseAgent
+from app.agents.research_agent import ResearchAgent
+from app.tools.flight_tool import FlightTool
+from app.tools.hotel_tool import HotelTool
 
 
 class AgentRegistry:
@@ -16,6 +19,9 @@ class AgentRegistry:
         self.register("supervisor", SupervisorAgent())
         self.register("travel", TravelAgent())
         self.register("response", ResponseAgent())
+        self.register("research", ResearchAgent())
+        self.register("flight", FlightTool())
+        self.register("hotel", HotelTool())
 
     def register(self, name: str, agent):
         self._agents[name] = agent
