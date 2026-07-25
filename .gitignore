@@ -21,3 +21,6 @@ node_modules/
 # Build
 dist/
 build/
+
+
+frontend1/
