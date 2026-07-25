@@ -70,8 +70,7 @@ def supervisor_node(state: AgentState):
 
     return state
 
-
-def execute_agents_node(state: AgentState):
+def execute_agents_node(state):
 
     tasks = state["supervisor_tasks"]
 
@@ -89,7 +88,8 @@ def execute_agents_node(state: AgentState):
             "result": result
         })
 
-    state["agent_outputs"]["execution"] = outputs
+        # Update state after each execution
+        state["agent_outputs"]["execution"] = outputs
 
     state["current_agent"] = "Executor"
 

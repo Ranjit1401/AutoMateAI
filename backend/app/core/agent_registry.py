@@ -24,6 +24,7 @@ class AgentRegistry:
         self.register("response", ResponseAgent())
         self.register("research", ResearchAgent())
         self.register("itinerary", ItineraryAgent())
+        self.register("budget", BudgetAgent())
 
     def register(self, name: str, agent):
         self._agents[name] = agent

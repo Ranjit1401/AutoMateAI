@@ -5,40 +5,62 @@ class ItineraryAgent(BaseAgent):
 
     name = "itinerary"
 
+    from app.agents.base_agent import BaseAgent
+
+
+class ItineraryAgent(BaseAgent):
+
+    name = "itinerary"
+
     def execute(self, action: str, state: dict):
 
-        travel = state.get("travel", {})
-        research = state.get("research", {})
+        execution = state["agent_outputs"]["execution"]
+
+        travel = {}
+        research = {}
+
+        # Read outputs from previous agents
+        for item in execution:
+
+            result = item["result"]
+
+            if "travel" in result:
+                travel = result["travel"]
+
+            if "research" in result:
+                research = result["research"]
 
         destination = travel.get("destination", "Unknown")
         days = travel.get("days", 3)
 
         places = research.get("top_places", [])
+        foods = research.get("local_food", [])
 
         itinerary = []
 
-        place_index = 0
+        for day in range(days):
 
-        for day in range(1, days + 1):
+            morning = ""
+            afternoon = ""
+            evening = ""
 
-            day_plan = {
-                "day": day,
-                "morning": "",
-                "afternoon": "",
-                "evening": ""
-            }
+            if places:
+                morning = places[day % len(places)]
 
-            if place_index < len(places):
-                day_plan["morning"] = places[place_index]
-                place_index += 1
+            if len(places) > 1:
+                afternoon = places[(day + 1) % len(places)]
 
-            if place_index < len(places):
-                day_plan["afternoon"] = places[place_index]
-                place_index += 1
+            if foods:
+                evening = f"Enjoy {foods[day % len(foods)]}"
+            else:
+                evening = f"Explore local food in {destination}"
 
-            day_plan["evening"] = f"Explore local food in {destination}"
-
-            itinerary.append(day_plan)
+            itinerary.append({
+                "day": day + 1,
+                "morning": morning,
+                "afternoon": afternoon,
+                "evening": evening
+            })
 
         return {
             "destination": destination,

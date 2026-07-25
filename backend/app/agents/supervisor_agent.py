@@ -1,5 +1,6 @@
 from app.agents.base_agent import BaseAgent
 from app.schemas.supervisor import SupervisorResponse, AgentTask
+from app.agents.budget_agent import BudgetAgent
 
 
 class SupervisorAgent(BaseAgent):
@@ -20,10 +21,13 @@ class SupervisorAgent(BaseAgent):
 
             if "activities" in step_lower:
                 agent = "research"
-            
+
             elif "itinerary" in step_lower:
                 agent = "itinerary"
-            
+
+            elif "budget" in step_lower:
+                agent = "budget"
+
             else:
                 agent = "travel"
             
@@ -33,6 +37,13 @@ class SupervisorAgent(BaseAgent):
                     action=step
                 )
             )
+            print("=" * 60)
+            print("SUPERVISOR")
+            print("STEP :", step)
+            print("AGENT:", agent)
+            print("=" * 60)
 
         # IMPORTANT: Return the response
         return SupervisorResponse(tasks=tasks)
+
+        

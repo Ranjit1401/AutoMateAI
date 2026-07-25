@@ -71,10 +71,24 @@ class BudgetAgent(BaseAgent):
             suggestions.append(
                 "Choose a cheaper hotel."
             )
-
+        
             suggestions.append(
                 "Select a lower-cost flight."
             )
+        
+        print("=" * 60)
+        print("BUDGET RESULT")
+        print({
+            "flight_cost": flight_cost,
+            "hotel_cost": hotel_cost,
+            "food_cost": food_cost,
+            "transport_cost": transport_cost,
+            "activities_cost": activities_cost,
+            "total": total,
+            "budget": budget,
+            "remaining": remaining,
+        })
+        print("=" * 60)
 
         return {
             "budget": {

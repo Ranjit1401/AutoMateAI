@@ -6,9 +6,23 @@ class HotelTool(BaseTool):
 
     name = "hotel"
 
-    def execute(self, destination):
+    def execute(
+        self,
+        destination,
+        check_in_date,
+        check_out_date,
+    ):
 
-        data = serp_provider.search_hotels(destination)
+        data = serp_provider.search_hotels(
+            destination,
+            check_in_date,
+            check_out_date,
+        )
+
+        print("=" * 60)
+        print("RAW HOTEL API RESPONSE")
+        print(data)
+        print("=" * 60)
 
         hotels = []
 

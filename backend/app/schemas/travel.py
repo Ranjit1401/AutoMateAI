@@ -19,8 +19,22 @@ class TravelInput(BaseModel):
         description="Total trip budget"
     )
 
-    start_date: Optional[str] = None
+    travellers: int = Field(
+        default=1,
+        description="Number of travellers"
+    )
 
-    end_date: Optional[str] = None
+    days: int = Field(
+        default=3,
+        description="Number of days for the trip"
+    )
 
-    travellers: int = 1
+    start_date: Optional[str] = Field(
+        default=None,
+        description="Trip start date in YYYY-MM-DD format"
+    )
+
+    end_date: Optional[str] = Field(
+        default=None,
+        description="Trip end date in YYYY-MM-DD format"
+    )
