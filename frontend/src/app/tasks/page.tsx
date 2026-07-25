@@ -1,54 +1,27 @@
 'use client'
 
-import { CheckCircle, Loader2, Clock, MapPin, Globe, FileText, Zap, Activity } from 'lucide-react'
+import { CheckCircle, Loader2, Clock, Zap, Activity } from 'lucide-react'
 
-const tasks = [
-  {
-    id: 'T-001',
-    title: 'Plan 7-day Tokyo Trip',
-    status: 'completed',
-    startedAt: '2:14 PM',
-    duration: '1m 24s',
-    icon: MapPin,
-    color: '#a855f7',
-    steps: [
-      { label: 'Search flights JFK → NRT', status: 'done', tool: 'FlightSearch', result: 'Found 12 options · Best $890/person' },
-      { label: 'Find hotels near Shinjuku', status: 'done', tool: 'HotelSearch', result: '8 hotels matched · Hyatt ¥28k/night' },
-      { label: 'Research top attractions', status: 'done', tool: 'WebSearch', result: '42 activities identified' },
-      { label: 'Build day-by-day itinerary', status: 'done', tool: 'Planner', result: '7-day plan generated' },
-      { label: 'Calculate total budget', status: 'done', tool: 'Calculator', result: '$7,200 for two people' },
-    ],
-  },
-  {
-    id: 'T-002',
-    title: 'Draft Q3 Investor Update',
-    status: 'running',
-    startedAt: '2:09 PM',
-    duration: '—',
-    icon: FileText,
-    color: '#06b6d4',
-    steps: [
-      { label: 'Retrieve Q3 financial data', status: 'done', tool: 'GoogleSheets', result: 'Revenue: $2.4M, growth 34%' },
-      { label: 'Summarize key metrics', status: 'done', tool: 'Analyzer', result: 'MoM: +8.3%, Churn: 2.1%' },
-      { label: 'Draft email body', status: 'running', tool: 'GPT-4o', result: null },
-      { label: 'Send via Gmail', status: 'waiting', tool: 'Gmail', result: null },
-    ],
-  },
-  {
-    id: 'T-003',
-    title: 'Analyze Competitor Pricing',
-    status: 'running',
-    startedAt: '2:02 PM',
-    duration: '—',
-    icon: Globe,
-    color: '#10b981',
-    steps: [
-      { label: 'Scrape competitor websites', status: 'done', tool: 'WebScraper', result: '6 competitors analyzed' },
-      { label: 'Extract pricing tables', status: 'running', tool: 'DataExtractor', result: null },
-      { label: 'Generate comparison report', status: 'waiting', tool: 'ReportGen', result: null },
-    ],
-  },
-]
+interface TaskStep {
+  label: string
+  status: string
+  tool: string
+  result: string | null
+}
+
+interface Task {
+  id: string
+  title: string
+  status: string
+  startedAt: string
+  duration: string
+  icon: React.ElementType
+  color: string
+  steps: TaskStep[]
+}
+
+// Populated once the backend is connected.
+const tasks: Task[] = []
 
 type StepStatus = 'done' | 'running' | 'waiting'
 
@@ -160,10 +133,25 @@ export default function Tasks() {
           }}
         >
           {[
-            { label: 'Running', value: '2', color: '#a855f7', icon: Activity },
-            { label: 'Completed Today', value: '5', color: '#10b981', icon: CheckCircle },
-            { label: 'Waiting', value: '1', color: '#52525b', icon: Clock },
-            { label: 'Avg Duration', value: '48s', color: '#06b6d4', icon: Zap },
+            {
+              label: 'Running',
+              value: String(tasks.filter(t => t.status === 'running').length),
+              color: '#a855f7',
+              icon: Activity,
+            },
+            {
+              label: 'Completed Today',
+              value: String(tasks.filter(t => t.status === 'completed').length),
+              color: '#10b981',
+              icon: CheckCircle,
+            },
+            {
+              label: 'Waiting',
+              value: String(tasks.filter(t => t.status === 'waiting').length),
+              color: '#52525b',
+              icon: Clock,
+            },
+            { label: 'Avg Duration', value: '—', color: '#06b6d4', icon: Zap },
           ].map(({ label, value, color, icon: Icon }) => (
             <div
               key={label}
@@ -189,6 +177,19 @@ export default function Tasks() {
         </div>
 
         {/* Task cards */}
+        {tasks.length === 0 ? (
+          <div
+            className="glass"
+            style={{
+              padding: '40px 24px',
+              textAlign: 'center',
+              fontSize: 13,
+              color: '#52525b',
+            }}
+          >
+            No tasks yet. Waiting for backend connection.
+          </div>
+        ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {tasks.map((task, idx) => {
             const Icon = task.icon
@@ -332,6 +333,7 @@ export default function Tasks() {
             )
           })}
         </div>
+        )}
       </div>
     </div>
   )

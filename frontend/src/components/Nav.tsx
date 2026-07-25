@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Sparkles, Home, MessageSquare, Brain, Plug, ScrollText, Settings } from 'lucide-react'
+import { Home, MessageSquare, Brain, Plug, ScrollText, Settings, User } from 'lucide-react'
 import type { ElementType } from 'react'
 
 const navItems: { href: string; label: string; icon: ElementType }[] = [
@@ -57,14 +57,14 @@ export default function Nav() {
               width: 28,
               height: 28,
               borderRadius: 8,
-              background: 'linear-gradient(135deg, #a855f7, #6366f1)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 12px rgba(168,85,247,0.5)',
+              filter: 'drop-shadow(0 0 8px rgba(168,85,247,0.5))',
             }}
           >
-            <Sparkles size={14} color="white" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.png" alt="AutoMateAI" style={{ width: 26, height: 26, objectFit: 'contain' }} />
           </div>
           <span
             style={{
@@ -111,7 +111,7 @@ export default function Nav() {
                   background: isActive
                     ? 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(99,102,241,0.15))'
                     : 'transparent',
-                  color: isActive ? '#c4b5fd' : '#71717a',
+                  color: isActive ? '#ffffff' : 'rgba(255,255,255,0.85)',
                   transition: 'all 0.2s ease',
                   whiteSpace: 'nowrap',
                   boxShadow: isActive ? 'inset 0 0 0 1px rgba(168,85,247,0.25)' : 'none',
@@ -130,20 +130,17 @@ export default function Nav() {
             width: 32,
             height: 32,
             borderRadius: '50%',
-            background: 'linear-gradient(135deg, #a855f7, #ec4899)',
+            background: 'rgba(255,255,255,0.08)',
+            border: '1px solid rgba(255,255,255,0.14)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 12,
-            fontWeight: 700,
-            color: 'white',
             cursor: 'pointer',
-            boxShadow: '0 0 12px rgba(168,85,247,0.4)',
             flexShrink: 0,
             marginLeft: 8,
           }}
         >
-          N
+          <User size={15} color="white" />
         </div>
       </div>
     </header>

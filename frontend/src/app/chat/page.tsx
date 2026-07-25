@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Sparkles, Mic, Paperclip, MapPin, CheckCircle, Loader2, Globe, Calendar } from 'lucide-react'
+import { Sparkles, Mic, Paperclip, CheckCircle, Loader2, User } from 'lucide-react'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -18,47 +18,7 @@ interface ToolCard {
   color: string
 }
 
-const INITIAL_MESSAGES: Message[] = [
-  {
-    role: 'user',
-    content: 'Plan a 7-day trip to Tokyo for two people in September. Include flights from New York, hotels near Shinjuku, and a daily itinerary.',
-  },
-  {
-    role: 'assistant',
-    content: "I'll plan a comprehensive 7-day Tokyo trip for you. Let me search for flights, hotels, and build a detailed itinerary right now.",
-    tools: [
-      { name: 'Searching flights JFK → TYO', status: 'done', result: 'Found 12 options · Best: $890/person on ANA', icon: Globe, color: '#a855f7' },
-      { name: 'Finding hotels near Shinjuku', status: 'done', result: '8 hotels matched · Rec: Hyatt Regency ¥28,000/night', icon: MapPin, color: '#06b6d4' },
-      { name: 'Building daily itinerary', status: 'done', result: '7-day plan created with 42 activities', icon: Calendar, color: '#10b981' },
-    ],
-  },
-  {
-    role: 'assistant',
-    content: `Here's your complete **Tokyo trip plan** for September:
-
-**✈️ Flights**
-- Outbound: ANA NH009 · JFK → NRT · Sep 1, 11:00am · $890/person
-- Return: ANA NH010 · NRT → JFK · Sep 8, 1:10pm · $910/person
-- Total flights: $3,600
-
-**🏨 Hotel**
-- Hyatt Regency Tokyo, Shinjuku · 7 nights · $1,540 total
-- Superior Room with city views · Breakfast included
-
-**📅 Highlights**
-- Day 1: Shinjuku exploration, Omoide Yokocho
-- Day 2: Tsukiji Market, Odaiba, teamLab Borderless
-- Day 3: Harajuku, Meiji Shrine, Shibuya Crossing
-- Day 4: Day trip to Nikko
-- Day 5: Asakusa, Ueno, Akihabara
-- Day 6: Ginza, Tokyo Tower, Roppongi
-- Day 7: Farewell brunch, Narita Express
-
-**💰 Total estimated cost: ~$7,200 for two**
-
-Would you like me to proceed with booking the flights and hotel?`,
-  },
-]
+const INITIAL_MESSAGES: Message[] = []
 
 function ToolExecCard({ tool }: { tool: ToolCard }) {
   const Icon = tool.icon
@@ -165,10 +125,10 @@ export default function Chat() {
         ...prev,
         {
           role: 'assistant',
-          content: "I'm on it! Let me process your request and get back to you with a comprehensive response. I'll use my connected tools to find the best information available.",
+          content: 'Waiting for backend connection.',
         },
       ])
-    }, 2200)
+    }, 800)
   }
 
   return (
@@ -191,6 +151,18 @@ export default function Chat() {
         }}
       >
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          {messages.length === 0 && !isTyping && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '80px 24px',
+                color: '#52525b',
+                fontSize: 14,
+              }}
+            >
+              No messages yet. Start a conversation below.
+            </div>
+          )}
           {messages.map((msg, i) => (
             <div
               key={i}
@@ -208,16 +180,16 @@ export default function Chat() {
                     width: 30,
                     height: 30,
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #a855f7, #6366f1)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
                     marginTop: 2,
-                    boxShadow: '0 0 12px rgba(168,85,247,0.4)',
+                    filter: 'drop-shadow(0 0 8px rgba(168,85,247,0.4))',
                   }}
                 >
-                  <Sparkles size={13} color="white" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/logo.png" alt="AutoMateAI" style={{ width: 26, height: 26, objectFit: 'contain' }} />
                 </div>
               )}
 
@@ -253,18 +225,16 @@ export default function Chat() {
                     width: 30,
                     height: 30,
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #a855f7, #ec4899)',
+                    background: 'rgba(255,255,255,0.08)',
+                    border: '1px solid rgba(255,255,255,0.14)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
                     marginTop: 2,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: 'white',
                   }}
                 >
-                  N
+                  <User size={13} color="white" />
                 </div>
               )}
             </div>
@@ -277,15 +247,15 @@ export default function Chat() {
                   width: 30,
                   height: 30,
                   borderRadius: '50%',
-                  background: 'linear-gradient(135deg, #a855f7, #6366f1)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
-                  boxShadow: '0 0 12px rgba(168,85,247,0.4)',
+                  filter: 'drop-shadow(0 0 8px rgba(168,85,247,0.4))',
                 }}
               >
-                <Sparkles size={13} color="white" />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.png" alt="AutoMateAI" style={{ width: 26, height: 26, objectFit: 'contain' }} />
               </div>
               <div
                 style={{

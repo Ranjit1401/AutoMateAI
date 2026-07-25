@@ -6,6 +6,9 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'AutoMateAI',
   description: 'AutoMateAI web application',
+  icons: {
+    icon: '/logo.png',
+  },
 }
 
 export default function RootLayout({
