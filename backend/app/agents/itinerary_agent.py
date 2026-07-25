@@ -1,5 +1,5 @@
 from app.agents.base_agent import BaseAgent
-
+from app.utils.execution_logger import log_step
 
 class ItineraryAgent(BaseAgent):
 
@@ -61,6 +61,12 @@ class ItineraryAgent(BaseAgent):
                 "afternoon": afternoon,
                 "evening": evening
             })
+
+            log_step(
+                state,
+                "Itinerary Agent",
+                "Itinerary generated"
+            )
 
         return {
             "destination": destination,

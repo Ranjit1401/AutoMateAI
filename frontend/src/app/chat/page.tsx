@@ -1,11 +1,18 @@
 'use client'
-
+import { sendMessage } from '@/lib/api'
 import { useState, useRef, useEffect } from 'react'
 import { Sparkles, Mic, Paperclip, CheckCircle, Loader2, User } from 'lucide-react'
+
+interface ExecutionStep {
+  agent: string
+  status: string
+  message: string
+}
 
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  execution?: ExecutionStep[]
   tools?: ToolCard[]
   streaming?: boolean
 }
@@ -113,22 +120,46 @@ export default function Chat() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isTyping])
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return
-    const userMsg: Message = { role: 'user', content: input }
-    setMessages(prev => [...prev, userMsg])
-    setInput('')
+
+    const question = input
+
+    setMessages(prev => [
+      ...prev,
+      {
+        role: 'user',
+        content: question,
+      },
+    ])
+
+    setInput("")
     setIsTyping(true)
-    setTimeout(() => {
-      setIsTyping(false)
+
+    try {
+      const data = await sendMessage(question)
+
       setMessages(prev => [
         ...prev,
         {
           role: 'assistant',
-          content: 'Waiting for backend connection.',
+          content: data.response,
+          execution: data.execution ?? [],
         },
       ])
-    }, 800)
+    } catch (err) {
+      setMessages(prev => [
+        ...prev,
+        {
+          role: 'assistant',
+          content: "❌ Unable to connect to the backend.",
+        },
+      ])
+
+      console.error(err)
+    } finally {
+      setIsTyping(false)
+    }
   }
 
   return (
@@ -217,6 +248,69 @@ export default function Chat() {
                   </div>
                 )}
                 <MessageContent content={msg.content} />
+                  {msg.execution && msg.execution.length > 0 && (
+    <div
+      style={{
+        marginBottom: 16,
+        padding: 12,
+        borderRadius: 12,
+        background: "rgba(168,85,247,0.08)",
+        border: "1px solid rgba(168,85,247,0.15)",
+      }}
+    >
+      <div
+        style={{
+          fontWeight: 600,
+          color: "#c084fc",
+          marginBottom: 10,
+        }}
+      >
+        ⚡ AI Execution
+      </div>
+      
+      {msg.execution.map((step, index) => (
+          <div
+            key={index}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              marginBottom: 8,
+            }}  
+          > 
+            <div
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "#22c55e",
+                }}
+            />  
+    
+            <div>
+                <div
+                  style={{
+                    color: "white",
+                    fontWeight: 500,
+                    fontSize: 13,
+                  }}
+                >
+                  {step.agent}
+                </div>
+              
+              <div
+                style={{
+                  color: "#9ca3af",
+                  fontSize: 12,
+                }}
+              >
+                {step.message}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    )}
               </div>
 
               {msg.role === 'user' && (

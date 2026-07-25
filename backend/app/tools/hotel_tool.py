@@ -11,6 +11,8 @@ class HotelTool(BaseTool):
         destination,
         check_in_date,
         check_out_date,
+        max_price=None,
+        min_rating=4.0,
     ):
 
         data = serp_provider.search_hotels(
@@ -26,12 +28,43 @@ class HotelTool(BaseTool):
 
         hotels = []
 
-        for hotel in data.get("properties", [])[:5]:
+        for hotel in data.get("properties", []):
+
+            price = hotel.get("rate_per_night", {}).get("lowest")
+            rating = hotel.get("overall_rating", 0)
+
+            # Convert price to float
+            if isinstance(price, str):
+                try:
+                    price = float(
+                        price.replace("₹", "")
+                             .replace(",", "")
+                    )
+                except:
+                    continue
+
+            if price is None:
+                continue
+
+            if rating is None:
+                rating = 0
+
+            # Rating filter
+            if rating < min_rating:
+                continue
+
+            # Budget filter (optional)
+            if max_price is not None and price > max_price:
+                continue
 
             hotels.append({
                 "name": hotel.get("name"),
-                "price": hotel.get("rate_per_night", {}).get("lowest"),
-                "rating": hotel.get("overall_rating"),
+                "price": price,
+                "rating": rating,
             })
 
-        return hotels
+        # Sort by cheapest first
+        hotels.sort(key=lambda x: x["price"])
+
+        # Return top 5
+        return hotels[:5]

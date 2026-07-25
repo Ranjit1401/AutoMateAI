@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from app.utils.execution_logger import log_step
 from app.agents.base_agent import BaseAgent
 
 
@@ -288,5 +288,11 @@ class ResponseAgent(BaseAgent):
                 lines.append(f"🌅 Morning : {day.get('morning', 'N/A')}")
                 lines.append(f"🌞 Afternoon : {day.get('afternoon', 'N/A')}")
                 lines.append(f"🌙 Evening : {day.get('evening', 'N/A')}")
+        
+        log_step(
+            state,
+            "Response Agent",
+            "Final response generated"
+        )
         
         return "\n".join(lines)
