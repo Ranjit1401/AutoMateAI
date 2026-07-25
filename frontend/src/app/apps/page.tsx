@@ -1,5 +1,5 @@
 'use client'
-
+import GoogleConnect from "@/components/GoogleConnect";
 import { useState } from 'react'
 import { CheckCircle, Plus } from 'lucide-react'
 
