@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AutoMateAI
 
-## Getting Started
+Next.js + TypeScript + Tailwind CSS v4 conversion of the AutoMateAI Figma Make export.
 
-First, run the development server:
+## Stack
+
+- [Next.js 15](https://nextjs.org) (App Router)
+- TypeScript
+- Tailwind CSS v4
+- [lucide-react](https://lucide.dev) for icons
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The original single-page app (which used local React state to switch between
+"pages") has been converted into real routes using the Next.js App Router:
 
-## Learn More
+| Original page      | Route         |
+| ------------------- | ------------- |
+| `Home`               | `/`           |
+| `Chat`                | `/chat`       |
+| `Tasks`               | `/tasks`      |
+| `Memory`              | `/memory`     |
+| `ConnectedApps`      | `/apps`       |
+| `Logs`                | `/logs`       |
+| `Settings`           | `/settings`   |
 
-To learn more about Next.js, take a look at the following resources:
+- `src/app/layout.tsx` — root layout, loads fonts (`next/font/google`), and
+  renders the shared `Aurora` background and `Nav` bar around every page.
+- `src/components/Nav.tsx` — top navigation bar, now using `next/link` and
+  `usePathname()` for active-route highlighting instead of local state.
+- `src/components/Aurora.tsx` — animated background blobs (unchanged).
+- `src/app/globals.css` — Tailwind v4 theme tokens + all custom animations /
+  utility classes from the original `index.css`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+All page components are marked `'use client'` since they rely on local
+component state (`useState`, `useRef`, etc.) from the original design.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Build
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run build
+npm start
+```
