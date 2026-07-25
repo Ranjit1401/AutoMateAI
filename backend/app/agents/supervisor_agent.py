@@ -16,11 +16,17 @@ class SupervisorAgent(BaseAgent):
 
         for step in steps:
 
-            if "activities" in step.lower():
+            step_lower = step.lower()
+
+            if "activities" in step_lower:
                 agent = "research"
+            
+            elif "itinerary" in step_lower:
+                agent = "itinerary"
+            
             else:
                 agent = "travel"
-
+            
             tasks.append(
                 AgentTask(
                     agent=agent,

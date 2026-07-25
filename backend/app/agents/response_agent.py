@@ -33,6 +33,7 @@ class ResponseAgent(BaseAgent):
             return value
 
     def generate(self, state):
+        budget_result = None
 
         execution = state.get("agent_outputs", {}).get("execution", [])
 
@@ -41,6 +42,7 @@ class ResponseAgent(BaseAgent):
 
         travel_result = None
         research_result = None
+        itinerary_result = None
 
         for item in execution:
 
@@ -52,6 +54,12 @@ class ResponseAgent(BaseAgent):
             if "research" in result:
                 research_result = result
 
+            if "itinerary" in result:
+                itinerary_result = result
+
+            if "budget" in result:
+                budget_result = result
+
         if not travel_result:
             return "Travel information could not be generated."
 
@@ -59,6 +67,10 @@ class ResponseAgent(BaseAgent):
         weather = travel_result.get("weather", {})
         flights = travel_result.get("flights", [])
         hotels = travel_result.get("hotels", [])
+        itinerary = {}
+
+        if itinerary_result:
+            itinerary = itinerary_result.get("itinerary", {})
 
         lines = []
 
@@ -224,6 +236,39 @@ class ResponseAgent(BaseAgent):
                 f"{research.get('best_time', 'N/A')}"
             )
 
+            if budget_result:
+
+                budget = budget_result["budget"]
+            
+                lines.append("")
+                lines.append("💰 Budget Analysis")
+            
+                lines.append(f"Flight Cost : ₹{budget['flight_cost']:.2f}")
+                lines.append(f"Hotel Cost : ₹{budget['hotel_cost']:.2f}")
+                lines.append(f"Food Cost : ₹{budget['food_cost']:.2f}")
+                lines.append(f"Transport Cost : ₹{budget['transport_cost']:.2f}")
+                lines.append(f"Activities Cost : ₹{budget['activities_cost']:.2f}")
+            
+                lines.append("")
+                lines.append(f"Estimated Total : ₹{budget['total_cost']:.2f}")
+                lines.append(f"Budget : ₹{budget['budget']:.2f}")
+            
+                if budget["within_budget"]:
+                    lines.append(
+                        f"✅ Remaining Budget : ₹{budget['remaining_budget']:.2f}"
+                    )
+                else:
+                    lines.append(
+                        f"❌ Over Budget by : ₹{abs(budget['remaining_budget']):.2f}"
+                    )
+            
+                    if budget["suggestions"]:
+                        lines.append("")
+                        lines.append("Suggestions")
+            
+                        for suggestion in budget["suggestions"]:
+                            lines.append(f"• {suggestion}")
+
         ##########################################################
         # FOOTER
         ##########################################################
@@ -231,4 +276,17 @@ class ResponseAgent(BaseAgent):
         lines.append("")
         lines.append("🎉 Have a safe and enjoyable journey!")
 
+        if itinerary:
+
+            lines.append("")
+            lines.append("📅 Itinerary")
+        
+            for day in itinerary:
+            
+                lines.append("")
+                lines.append(f"Day {day.get('day', 'N/A')}")
+                lines.append(f"🌅 Morning : {day.get('morning', 'N/A')}")
+                lines.append(f"🌞 Afternoon : {day.get('afternoon', 'N/A')}")
+                lines.append(f"🌙 Evening : {day.get('evening', 'N/A')}")
+        
         return "\n".join(lines)

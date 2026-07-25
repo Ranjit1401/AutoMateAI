@@ -1,6 +1,16 @@
 from app.graph.state import AgentState
 from app.core.agent_registry import registry
 from app.executor.agent_executor import agent_executor
+from app.agents.budget_agent import BudgetAgent
+
+budget_agent = BudgetAgent()
+def budget_node(state):
+
+    result = budget_agent.execute(None, state)
+
+    state["agent_outputs"]["budget"] = result
+
+    return state
 
 
 def router_node(state: AgentState):
@@ -26,6 +36,10 @@ def planner_node(state: AgentState):
         user_input=state["user_input"],
         task_type=state["task_type"]
     )
+
+    print("========== PLANNER RESULT ==========")
+    print(result)
+
 
     state["execution_plan"] = result.steps
     state["current_agent"] = "Planner"

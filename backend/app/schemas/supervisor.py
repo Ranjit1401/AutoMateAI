@@ -5,7 +5,9 @@ from pydantic import BaseModel
 class AgentTask(BaseModel):
     agent: Literal[
         "travel",
-        "research"
+        "research",
+        "itinerary",
+        "budget"
     ]
     action: str
 

@@ -1,3 +1,5 @@
+from dotenv import load_dotenv
+load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -5,6 +7,7 @@ from app.api.chat import router
 from app.api.voice import router as voice_router
 from app.api.calls import router as calls_router
 from app.api.google_routes import router as google_router
+
 
 app = FastAPI()
 

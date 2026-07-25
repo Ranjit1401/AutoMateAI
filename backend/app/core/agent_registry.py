@@ -6,6 +6,9 @@ from app.agents.response_agent import ResponseAgent
 from app.agents.research_agent import ResearchAgent
 from app.tools.flight_tool import FlightTool
 from app.tools.hotel_tool import HotelTool
+from app.agents.itinerary_agent import ItineraryAgent
+from app.agents.budget_agent import BudgetAgent
+
 
 
 class AgentRegistry:
@@ -20,8 +23,7 @@ class AgentRegistry:
         self.register("travel", TravelAgent())
         self.register("response", ResponseAgent())
         self.register("research", ResearchAgent())
-        self.register("flight", FlightTool())
-        self.register("hotel", HotelTool())
+        self.register("itinerary", ItineraryAgent())
 
     def register(self, name: str, agent):
         self._agents[name] = agent

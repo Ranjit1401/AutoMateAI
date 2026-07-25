@@ -1,8 +1,6 @@
 import os
 from datetime import datetime, timedelta
-from serpapi import GoogleSearch
-
-
+from serpapi.google_search import GoogleSearch
 class Cache:
 
     def __init__(self):
