@@ -5,41 +5,42 @@ from app.executor.agent_executor import agent_executor
 
 def router_node(state: AgentState):
 
-    result = registry.router.route(
+    router = registry.get("router")
+
+    result = router.route(
         state["user_input"]
     )
 
     state["task_type"] = result.task_type
-
     state["current_agent"] = "Router"
-
-    state["agent_outputs"]["router"] = result.reason
+    state["agent_outputs"]["router"] = result.model_dump()
 
     return state
 
 
 def planner_node(state: AgentState):
 
-    result = registry.planner.plan(
+    planner = registry.get("planner")
+
+    result = planner.plan(
         user_input=state["user_input"],
         task_type=state["task_type"]
     )
 
     state["execution_plan"] = result.steps
-
     state["current_agent"] = "Planner"
-
     state["agent_outputs"]["planner"] = result.model_dump()
-
-    state["final_response"] = result.model_dump()
 
     return state
 
+
 def supervisor_node(state: AgentState):
+
+    supervisor = registry.get("supervisor")
 
     planner_data = state["agent_outputs"]["planner"]
 
-    result = registry.supervisor.decide(
+    result = supervisor.decide(
         goal=planner_data["goal"],
         steps=planner_data["steps"]
     )
@@ -56,7 +57,7 @@ def supervisor_node(state: AgentState):
     return state
 
 
-def execute_agents_node(state):
+def execute_agents_node(state: AgentState):
 
     tasks = state["supervisor_tasks"]
 
@@ -64,7 +65,10 @@ def execute_agents_node(state):
 
     for task in tasks:
 
-        result = agent_executor.execute(task, state)
+        result = agent_executor.execute(
+            task,
+            state
+        )
 
         outputs.append({
             "task": task,
@@ -74,5 +78,16 @@ def execute_agents_node(state):
     state["agent_outputs"]["execution"] = outputs
 
     state["current_agent"] = "Executor"
+
+    return state
+
+
+def response_node(state):
+
+    response_agent = registry.get("response")
+
+    final_response = response_agent.generate(state)
+
+    state["final_response"] = final_response
 
     return state

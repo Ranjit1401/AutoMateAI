@@ -1,11 +1,5 @@
-from app.tools.executor import tool_executor
+from app.tools.weather_tool import WeatherTool
 
-result = tool_executor.execute(
+tool = WeatherTool()
 
-    tool_name="weather",
-
-    city="Mumbai",
-
-)
-
-print(result)
+print(tool.execute("mumbai"))

@@ -1,9 +1,15 @@
-from dotenv import load_dotenv
-import os
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Load .env file
-load_dotenv()
 
-# Read variables
-GROQ_API_KEY = os.getenv("GROQ_API_KEY")
-MODEL_NAME = os.getenv("MODEL_NAME")
+class Settings(BaseSettings):
+    GROQ_API_KEY: str
+    MODEL_NAME: str
+    OPENWEATHER_API_KEY: str
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore"
+    )
+
+
+settings = Settings()

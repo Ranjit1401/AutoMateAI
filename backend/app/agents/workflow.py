@@ -1,25 +1,29 @@
-from langgraph.graph import StateGraph
+from langgraph.graph import StateGraph, START, END
+
 from app.graph.state import AgentState
 from app.graph.nodes import (
-    classify_node,
+    router_node,
     planner_node,
-    finish_node,
+    supervisor_node,
+    execute_agents_node,
+    response_node,
 )
 
 builder = StateGraph(AgentState)
 
-builder.add_node("classify", classify_node)
-
+# Nodes
+builder.add_node("router", router_node)
 builder.add_node("planner", planner_node)
+builder.add_node("supervisor", supervisor_node)
+builder.add_node("execute_agents", execute_agents_node)
+builder.add_node("response", response_node)
 
-builder.add_node("finish", finish_node)
-
-builder.set_entry_point("classify")
-
-builder.add_edge("classify", "planner")
-
-builder.add_edge("planner", "finish")
-
-builder.set_finish_point("finish")
+# Flow
+builder.add_edge(START, "router")
+builder.add_edge("router", "planner")
+builder.add_edge("planner", "supervisor")
+builder.add_edge("supervisor", "execute_agents")
+builder.add_edge("execute_agents", "response")
+builder.add_edge("response", END)
 
 graph = builder.compile()

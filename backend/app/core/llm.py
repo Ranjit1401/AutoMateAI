@@ -1,8 +1,8 @@
 from langchain_groq import ChatGroq
-from app.core.config import GROQ_API_KEY, MODEL_NAME
+from app.core.config import settings
 
 llm = ChatGroq(
-    groq_api_key=GROQ_API_KEY,
-    model_name=MODEL_NAME,
-    temperature=0
+    api_key=settings.GROQ_API_KEY,
+    model=settings.MODEL_NAME,
+    temperature=0,
 )

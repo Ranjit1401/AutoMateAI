@@ -3,19 +3,17 @@ from pydantic import BaseModel
 
 
 class AgentTask(BaseModel):
-    agent: Literal[
-        "travel",
-        "research",
-        "coding",
-        "email",
-        "calendar",
-        "shopping",
-        "finance",
-        "memory"
-    ]
+    """
+    A single task assigned by the Supervisor.
+    """
 
+    agent: Literal["travel"]
     action: str
 
 
 class SupervisorResponse(BaseModel):
+    """
+    Supervisor response containing all assigned tasks.
+    """
+
     tasks: List[AgentTask]

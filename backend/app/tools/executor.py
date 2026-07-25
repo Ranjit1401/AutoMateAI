@@ -1,22 +1,14 @@
-from typing import Any
-
-from app.tools import tool_registry
+from app.tools.registry import tool_registry
 
 
 class ToolExecutor:
 
-    def execute(
-        self,
-        tool_name: str,
-        **kwargs
-    ) -> Any:
+    def execute(self, tool_name: str, **kwargs):
 
         tool = tool_registry.get(tool_name)
 
         if tool is None:
-            raise Exception(
-                f"Tool '{tool_name}' not found."
-            )
+            raise ValueError(f"Unknown tool: {tool_name}")
 
         return tool.execute(**kwargs)
 
