@@ -1,4 +1,4 @@
-import { authApi, User } from '@/lib/api'
+import { authApi, setStoredToken, clearStoredToken, User } from '@/lib/api'
 
 export type StoredUser = User
 
@@ -29,6 +29,7 @@ export async function signupAndStore(
   password: string,
 ): Promise<StoredUser> {
   const data = await authApi.signup(email, password, name)
+  // Store the token BEFORE calling /auth/me so the Bearer header is sent
   setStoredToken(data.access_token)
 
   const user = await authApi.me()
@@ -41,7 +42,10 @@ export async function loginAndStore(
   email: string,
   password: string,
 ): Promise<StoredUser> {
-  await authApi.login(email, password)
+  // Capture the response — it contains the access_token we need to store
+  const data = await authApi.login(email, password)
+  // Store token so subsequent /auth/me call includes the Bearer header
+  setStoredToken(data.access_token)
 
   const user = await authApi.me()
   setUser(user)
@@ -50,14 +54,15 @@ export async function loginAndStore(
 }
 
 export async function logout(): Promise<void> {
+  clearStoredToken()
+  removeUser()
+
   try {
     await authApi.logout()
   } catch {}
 
-  removeUser()
-
   if (typeof window !== 'undefined') {
-    window.location.href = '/auth/login'
+    window.location.href = '/login'
   }
 }
 
@@ -67,7 +72,8 @@ export async function isAuthenticated(): Promise<boolean> {
     setUser(user)
     return true
   } catch {
+    clearStoredToken()
     removeUser()
     return false
   }
-}
+}
