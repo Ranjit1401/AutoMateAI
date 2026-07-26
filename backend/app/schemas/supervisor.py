@@ -1,14 +1,20 @@
 from typing import Literal
+
 from pydantic import BaseModel
+
+AgentName = Literal[
+    "travel",
+    "research",
+    "itinerary",
+    "budget",
+    "restaurant",
+    "maps",
+    "booking",
+]
 
 
 class AgentTask(BaseModel):
-    agent: Literal[
-        "travel",
-        "research",
-        "itinerary",
-        "budget"
-    ]
+    agent: AgentName
     action: str
 
 

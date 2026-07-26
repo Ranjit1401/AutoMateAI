@@ -1,285 +1,94 @@
 'use client'
 
-import { useState } from 'react'
-import { ChevronDown, ChevronRight, CheckCircle, Loader2, AlertCircle, Clock } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Info, AlertTriangle, XCircle, ScrollText } from 'lucide-react'
+import { logsApi, type LogEntry } from '@/lib/api'
 
-interface LogEntry {
-  id: string
-  timestamp: string
-  level: 'info' | 'success' | 'warning' | 'error' | 'running'
-  message: string
-  source: string
-  details?: string[]
-  expanded?: boolean
+const LEVEL_CONFIG: Record<LogEntry['level'], { color: string; icon: React.ElementType }> = {
+  info: { color: '#60a5fa', icon: Info },
+  warning: { color: '#fbbf24', icon: AlertTriangle },
+  error: { color: '#f87171', icon: XCircle },
 }
 
-// Populated once the backend is connected.
-const allLogs: LogEntry[] = []
-
-const levelConfig = {
-  success: { color: '#10b981', bg: '#10b98115', border: '#10b98125', icon: CheckCircle, label: 'Success' },
-  running: { color: '#a855f7', bg: 'rgba(168,85,247,0.12)', border: 'rgba(168,85,247,0.25)', icon: Loader2, label: 'Running' },
-  warning: { color: '#f59e0b', bg: '#f59e0b15', border: '#f59e0b25', icon: AlertCircle, label: 'Warning' },
-  error: { color: '#ef4444', bg: '#ef444415', border: '#ef444425', icon: AlertCircle, label: 'Error' },
-  info: { color: '#06b6d4', bg: '#06b6d415', border: '#06b6d425', icon: Clock, label: 'Info' },
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
 
 export default function Logs() {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set())
-  const [filter, setFilter] = useState<string>('all')
+  const [logs, setLogs] = useState<LogEntry[]>([])
+  const [filter, setFilter] = useState<'all' | LogEntry['level']>('all')
+  const [loading, setLoading] = useState(true)
 
-  const filtered = allLogs.filter(l => filter === 'all' || l.level === filter)
+  useEffect(() => {
+    logsApi
+      .list()
+      .then(setLogs)
+      .finally(() => setLoading(false))
+  }, [])
 
-  const toggle = (id: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
+  const filtered = filter === 'all' ? logs : logs.filter((l) => l.level === filter)
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        zIndex: 1,
-        minHeight: '100vh',
-        paddingTop: 100,
-        paddingBottom: 80,
-      }}
-    >
-      <div style={{ maxWidth: 860, margin: '0 auto', padding: '24px' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'flex-end',
-            justifyContent: 'space-between',
-            marginBottom: 28,
-            animation: 'slide-up 0.5s cubic-bezier(0.16,1,0.3,1) both',
-          }}
-        >
+    <div style={{ position: 'relative', zIndex: 1, minHeight: '100vh', paddingTop: 100, paddingBottom: 80 }}>
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: '24px' }}>
+        <div style={{ marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1
-              style={{ fontSize: 28, fontWeight: 700, color: 'white', letterSpacing: '-0.5px', margin: '0 0 8px' }}
-            >
-              Execution Logs
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: 'white', letterSpacing: '-0.5px', margin: '0 0 8px' }}>
+              Logs
             </h1>
-            <p style={{ fontSize: 14, color: '#52525b', margin: 0 }}>
-              Full audit trail of every action AutoMateAI takes
-            </p>
+            <p style={{ fontSize: 14, color: '#52525b', margin: 0 }}>System and agent activity, most recent first</p>
           </div>
-          <div
-            style={{
-              fontSize: 11,
-              fontFamily: 'JetBrains Mono, monospace',
-              color: '#52525b',
-              background: 'rgba(255,255,255,0.04)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              padding: '6px 12px',
-              borderRadius: 8,
-            }}
-          >
-            {allLogs.length} entries today
-          </div>
-        </div>
 
-        {/* Filters */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 6,
-            marginBottom: 20,
-            flexWrap: 'wrap',
-            animation: 'slide-up 0.5s cubic-bezier(0.16,1,0.3,1) 0.05s both',
-          }}
-        >
-          {['all', 'running', 'success', 'warning', 'error', 'info'].map(f => {
-            const cfg = f !== 'all' ? levelConfig[f as keyof typeof levelConfig] : null
-            return (
+          <div style={{ display: 'flex', gap: 6 }}>
+            {(['all', 'info', 'warning', 'error'] as const).map((level) => (
               <button
-                key={f}
-                onClick={() => setFilter(f)}
+                key={level}
+                onClick={() => setFilter(level)}
+                className={filter === level ? '' : 'glass-hover'}
                 style={{
                   padding: '6px 12px',
                   borderRadius: 8,
-                  border: filter === f && cfg ? `1px solid ${cfg.border}` : '1px solid transparent',
                   fontSize: 12,
                   fontWeight: 500,
-                  fontFamily: 'inherit',
                   cursor: 'pointer',
-                  background: filter === f ? (cfg ? cfg.bg : 'rgba(255,255,255,0.08)') : 'rgba(255,255,255,0.04)',
-                  color: filter === f ? (cfg ? cfg.color : 'white') : '#52525b',
-                  transition: 'all 0.2s ease',
+                  textTransform: 'capitalize',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: filter === level ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.03)',
+                  color: filter === level ? 'white' : '#a1a1aa',
                 }}
               >
-                {f.charAt(0).toUpperCase() + f.slice(1)}
+                {level}
               </button>
-            )
-          })}
+            ))}
+          </div>
         </div>
 
-        {/* Log entries */}
-        {filtered.length === 0 ? (
-          <div
-            className="glass"
-            style={{
-              padding: '40px 24px',
-              textAlign: 'center',
-              fontSize: 13,
-              color: '#52525b',
-            }}
-          >
-            No logs yet. Waiting for backend connection.
+        {loading ? (
+          <div className="glass" style={{ padding: 40, textAlign: 'center', fontSize: 13, color: '#52525b' }}>
+            Loading logs…
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="glass" style={{ padding: 40, textAlign: 'center', fontSize: 13, color: '#52525b' }}>
+            <ScrollText size={20} color="#3f3f46" style={{ marginBottom: 8 }} />
+            <div>No logs yet.</div>
           </div>
         ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {filtered.map((log, i) => {
-            const cfg = levelConfig[log.level]
-            const Icon = cfg.icon
-            const isOpen = expanded.has(log.id)
-
-            return (
-              <div
-                key={log.id}
-                className="glass"
-                style={{
-                  overflow: 'hidden',
-                  animation: `slide-up 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.04}s both`,
-                  borderColor: isOpen ? cfg.border : 'rgba(255,255,255,0.08)',
-                  transition: 'border-color 0.2s ease',
-                }}
-              >
-                <button
-                  onClick={() => toggle(log.id)}
-                  style={{
-                    width: '100%',
-                    padding: '14px 16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit',
-                    textAlign: 'left',
-                  }}
-                >
-                  {isOpen ? (
-                    <ChevronDown size={14} color="#52525b" style={{ flexShrink: 0 }} />
-                  ) : (
-                    <ChevronRight size={14} color="#52525b" style={{ flexShrink: 0 }} />
-                  )}
-
-                  <div
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: 8,
-                      background: cfg.bg,
-                      border: `1px solid ${cfg.border}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Icon
-                      size={13}
-                      color={cfg.color}
-                      style={{
-                        animation:
-                          log.level === 'running'
-                            ? 'spin 1s linear infinite'
-                            : undefined,
-                      }}
-                    />
-                  </div>
-
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {filtered.map((log) => {
+              const { color, icon: Icon } = LEVEL_CONFIG[log.level]
+              return (
+                <div key={log.id} className="glass" style={{ padding: '10px 14px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                  <Icon size={13} color={color} style={{ marginTop: 2, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: 'white' }}>{log.message}</div>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 10,
-                        marginTop: 2,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 10,
-                          fontFamily: 'JetBrains Mono, monospace',
-                          color: '#3f3f46',
-                        }}
-                      >
-                        {log.timestamp}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 10,
-                          color: '#52525b',
-                          background: 'rgba(255,255,255,0.04)',
-                          padding: '1px 6px',
-                          borderRadius: 4,
-                        }}
-                      >
-                        {log.source}
-                      </span>
+                    <div style={{ fontSize: 13, color: 'white' }}>{log.message}</div>
+                    <div style={{ fontSize: 11, color: '#52525b', marginTop: 3 }}>
+                      {log.source} · {formatTime(log.created_at)}
                     </div>
                   </div>
-
-                  <span
-                    style={{
-                      fontSize: 11,
-                      fontWeight: 500,
-                      color: cfg.color,
-                      background: cfg.bg,
-                      padding: '3px 8px',
-                      borderRadius: 6,
-                      border: `1px solid ${cfg.border}`,
-                      flexShrink: 0,
-                    }}
-                  >
-                    {cfg.label}
-                  </span>
-                </button>
-
-                {isOpen && log.details && (
-                  <div
-                    style={{
-                      padding: '0 16px 14px 58px',
-                      borderTop: '1px solid rgba(255,255,255,0.04)',
-                    }}
-                  >
-                    <div
-                      style={{
-                        background: 'rgba(0,0,0,0.3)',
-                        borderRadius: 10,
-                        padding: '12px 14px',
-                        marginTop: 12,
-                        border: '1px solid rgba(255,255,255,0.05)',
-                      }}
-                    >
-                      {log.details.map((line, j) => (
-                        <div
-                          key={j}
-                          style={{
-                            fontSize: 12,
-                            fontFamily: 'JetBrains Mono, monospace',
-                            color: line.startsWith('✗') ? '#ef4444' : line.startsWith('⟳') ? '#a855f7' : '#71717a',
-                            lineHeight: 1.8,
-                          }}
-                        >
-                          {line}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
+                </div>
+              )
+            })}
+          </div>
         )}
       </div>
     </div>

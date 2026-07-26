@@ -1,133 +1,93 @@
-from typing import Any, Dict, Optional
+"""Google OAuth flow + credential storage.
 
+Tokens are persisted in the GoogleToken table (see app/db/models.py),
+scoped strictly to the requesting user_id. The previous version stored
+tokens in a process-RAM dict and silently fell back to "whichever token
+was stored first" when no exact user_id match existed — a real
+multi-tenant data leak. That fallback has been removed entirely: no
+matching row means the caller must (re)connect their own account.
+"""
+from typing import Any
+
+from google.auth.transport.requests import Request as GoogleAuthRequest
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
-from google.auth.transport.requests import Request as GoogleAuthRequest
+from sqlalchemy.orm import Session
 
-from app.config.settings import (
-    GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET,
-    GOOGLE_REDIRECT_URI,
-    GOOGLE_SCOPES,
-)
+from app.core.config import settings
+from app.db.models import GoogleToken
 
 
 class GoogleAuthError(Exception):
     """Raised when Google OAuth configuration or token exchange fails."""
 
 
-# ---------------------------------------------------------------------------
-# Placeholder token store.
-#
-# Replace this with real persistence (DB table, Redis, etc.) keyed by your
-# app's user id. Kept in-memory here only so the OAuth flow is runnable
-# end-to-end out of the box.
-# ---------------------------------------------------------------------------
-_TOKEN_STORE: Dict[str, Dict[str, Any]] = {}
-
-
-def _client_config() -> Dict[str, Any]:
-
-    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET or not GOOGLE_REDIRECT_URI:
-        raise GoogleAuthError(
-            "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET / GOOGLE_REDIRECT_URI are not configured."
-        )
+def _client_config() -> dict[str, Any]:
+    if not settings.GOOGLE_CLIENT_ID or not settings.GOOGLE_CLIENT_SECRET:
+        raise GoogleAuthError("GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are not configured.")
 
     return {
         "web": {
-            "client_id": GOOGLE_CLIENT_ID,
-            "client_secret": GOOGLE_CLIENT_SECRET,
-            "redirect_uris": [GOOGLE_REDIRECT_URI],
+            "client_id": settings.GOOGLE_CLIENT_ID,
+            "client_secret": settings.GOOGLE_CLIENT_SECRET,
+            "redirect_uris": [settings.GOOGLE_REDIRECT_URI],
             "auth_uri": "https://accounts.google.com/o/oauth2/auth",
             "token_uri": "https://oauth2.googleapis.com/token",
         }
     }
 
 
-def get_authorization_url(state: Optional[str] = None) -> str:
-    """
-    Builds the URL the frontend should redirect the user to in order to
-    grant Gmail/Calendar/Drive/Sheets access.
-    """
-
-    flow = Flow.from_client_config(
-        _client_config(),
-        scopes=GOOGLE_SCOPES,
-        redirect_uri=GOOGLE_REDIRECT_URI,
-    )
-
-    auth_url, _ = flow.authorization_url(
-        access_type="offline",
-        include_granted_scopes="true",
-        prompt="consent",
-        state=state,
-    )
-
+def get_authorization_url(state: str) -> str:
+    """Builds the URL the frontend should redirect the user to in order to
+    grant Gmail/Calendar/Drive/Sheets access. `state` is the app's own
+    user id, so the callback knows whose account to attach tokens to."""
+    flow = Flow.from_client_config(_client_config(), scopes=settings.GOOGLE_SCOPES, redirect_uri=settings.GOOGLE_REDIRECT_URI)
+    auth_url, _ = flow.authorization_url(access_type="offline", include_granted_scopes="true", prompt="consent", state=state)
     return auth_url
 
 
-def exchange_code_for_token(code: str, user_id: str) -> Dict[str, Any]:
-    """
-    Exchanges the OAuth `code` returned to GOOGLE_REDIRECT_URI for tokens,
-    and stores them against `user_id`. Call this from the
-    /google/oauth/callback route.
-    """
-
-    flow = Flow.from_client_config(
-        _client_config(),
-        scopes=GOOGLE_SCOPES,
-        redirect_uri=GOOGLE_REDIRECT_URI,
-    )
-
+def exchange_code_for_token(db: Session, code: str, user_id: str) -> GoogleToken:
+    flow = Flow.from_client_config(_client_config(), scopes=settings.GOOGLE_SCOPES, redirect_uri=settings.GOOGLE_REDIRECT_URI)
     flow.fetch_token(code=code)
     credentials = flow.credentials
 
-    token_data = {
-        "token": credentials.token,
-        "refresh_token": credentials.refresh_token,
-        "token_uri": credentials.token_uri,
-        "client_id": credentials.client_id,
-        "client_secret": credentials.client_secret,
-        "scopes": credentials.scopes,
-    }
+    token = db.get(GoogleToken, user_id)
+    if token is None:
+        token = GoogleToken(user_id=user_id)
+        db.add(token)
 
-    _TOKEN_STORE[user_id] = token_data
-    return token_data
+    token.access_token = credentials.token
+    token.refresh_token = credentials.refresh_token or (token.refresh_token if token.refresh_token else None)
+    token.token_uri = credentials.token_uri
+    token.client_id = credentials.client_id
+    token.client_secret = credentials.client_secret
+    token.scopes = " ".join(credentials.scopes or [])
+
+    db.commit()
+    db.refresh(token)
+    return token
 
 
-def save_user_token(user_id: str, token_data: Dict[str, Any]) -> None:
-    _TOKEN_STORE[user_id] = token_data
-
-
-def get_credentials(user_id: Optional[str] = None) -> Credentials:
-    """
-    Loads stored credentials for `user_id` (or the only stored user, if a
-    single-tenant setup) and refreshes them if expired.
-    """
-
-    if not _TOKEN_STORE:
-        raise GoogleAuthError("No Google account has been connected yet. Complete the OAuth flow first.")
-
-    if user_id and user_id in _TOKEN_STORE:
-        token_data = _TOKEN_STORE[user_id]
-    else:
-        # Single-tenant fallback: use the first (and likely only) stored token.
-        token_data = next(iter(_TOKEN_STORE.values()))
+def get_credentials(db: Session, user_id: str) -> Credentials:
+    """Loads this user's stored credentials and refreshes them if expired.
+    Raises if this exact user has not connected an account — never falls
+    back to another user's token."""
+    token = db.get(GoogleToken, user_id)
+    if token is None:
+        raise GoogleAuthError("No Google account connected for this user. Complete the OAuth flow first.")
 
     credentials = Credentials(
-        token=token_data.get("token"),
-        refresh_token=token_data.get("refresh_token"),
-        token_uri=token_data.get("token_uri"),
-        client_id=token_data.get("client_id"),
-        client_secret=token_data.get("client_secret"),
-        scopes=token_data.get("scopes"),
+        token=token.access_token,
+        refresh_token=token.refresh_token,
+        token_uri=token.token_uri,
+        client_id=token.client_id,
+        client_secret=token.client_secret,
+        scopes=token.scopes.split(),
     )
 
     if credentials.expired and credentials.refresh_token:
         credentials.refresh(GoogleAuthRequest())
-
-        if user_id:
-            token_data["token"] = credentials.token
-            _TOKEN_STORE[user_id] = token_data
+        token.access_token = credentials.token
+        db.commit()
 
     return credentials

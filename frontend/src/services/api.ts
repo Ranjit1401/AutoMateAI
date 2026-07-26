@@ -1,15 +1,5 @@
-const API_URL = "http://localhost:8000";
-
-export async function sendMessage(message: string) {
-  const res = await fetch(`${API_URL}/chat`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      message,
-    }),
-  });
-
-  return res.json();
-}
+/**
+ * @deprecated This file is kept for backward compatibility.
+ * Import from '@/lib/api' directly.
+ */
+export * from '@/lib/api'

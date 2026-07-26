@@ -2,12 +2,7 @@ from typing import Any, Dict, Optional
 
 import requests
 
-from app.config.settings import (
-    VAPI_API_KEY,
-    VAPI_BASE_URL,
-    VAPI_ASSISTANT_ID,
-    VAPI_PHONE_NUMBER_ID,
-)
+from app.core.config import settings
 
 
 class VapiServiceError(Exception):
@@ -16,11 +11,11 @@ class VapiServiceError(Exception):
 
 def _headers() -> Dict[str, str]:
 
-    if not VAPI_API_KEY:
+    if not settings.VAPI_API_KEY:
         raise VapiServiceError("VAPI_API_KEY is not configured.")
 
     return {
-        "Authorization": f"Bearer {VAPI_API_KEY}",
+        "Authorization": f"Bearer {settings.VAPI_API_KEY}",
         "Content-Type": "application/json",
     }
 
@@ -65,7 +60,7 @@ def create_assistant(config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
 
     try:
         response = requests.post(
-            f"{VAPI_BASE_URL}/assistant",
+            f"{settings.VAPI_BASE_URL}/assistant",
             headers=_headers(),
             json=payload,
             timeout=15,
@@ -92,7 +87,7 @@ def create_call(
       web-call config the frontend can use with the Vapi Web SDK.
     """
 
-    assistant = assistant_id or VAPI_ASSISTANT_ID
+    assistant = assistant_id or settings.VAPI_ASSISTANT_ID
 
     if not assistant:
         raise VapiServiceError("No assistant_id provided and VAPI_ASSISTANT_ID is not configured.")
@@ -103,7 +98,7 @@ def create_call(
         payload["metadata"] = metadata
 
     if customer_number:
-        number_id = phone_number_id or VAPI_PHONE_NUMBER_ID
+        number_id = phone_number_id or settings.VAPI_PHONE_NUMBER_ID
 
         if not number_id:
             raise VapiServiceError("phone_number_id is required to place an outbound call.")
@@ -113,7 +108,7 @@ def create_call(
 
     try:
         response = requests.post(
-            f"{VAPI_BASE_URL}/call",
+            f"{settings.VAPI_BASE_URL}/call",
             headers=_headers(),
             json=payload,
             timeout=15,
@@ -129,7 +124,7 @@ def get_call(call_id: str) -> Dict[str, Any]:
 
     try:
         response = requests.get(
-            f"{VAPI_BASE_URL}/call/{call_id}",
+            f"{settings.VAPI_BASE_URL}/call/{call_id}",
             headers=_headers(),
             timeout=15,
         )
@@ -144,7 +139,7 @@ def end_call(call_id: str) -> Dict[str, Any]:
 
     try:
         response = requests.patch(
-            f"{VAPI_BASE_URL}/call/{call_id}",
+            f"{settings.VAPI_BASE_URL}/call/{call_id}",
             headers=_headers(),
             json={"status": "ended"},
             timeout=15,

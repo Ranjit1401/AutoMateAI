@@ -1,75 +1,41 @@
+from datetime import datetime
+
 from app.agents.base_agent import BaseAgent
-from app.utils.execution_logger import log_step
-
-class ItineraryAgent(BaseAgent):
-
-    name = "itinerary"
-
-    from app.agents.base_agent import BaseAgent
+from app.agents.mixins import TravelExtractionMixin
+from app.schemas.itinerary import ItineraryPlan
 
 
-class ItineraryAgent(BaseAgent):
+class ItineraryAgent(BaseAgent, TravelExtractionMixin):
+    """Generates a real, destination-specific day-by-day itinerary via the
+    LLM's structured output — not a static template."""
 
-    name = "itinerary"
+    def __init__(self):
+        super().__init__()
+        self._itinerary_parser = self.llm.with_structured_output(ItineraryPlan)
 
-    def execute(self, action: str, state: dict):
+    def execute(self, action: str, state: dict) -> dict:
+        travel = self.extract_travel(state["user_input"])
+        nights = self._nights(travel)
 
-        execution = state["agent_outputs"]["execution"]
-
-        travel = {}
-        research = {}
-
-        # Read outputs from previous agents
-        for item in execution:
-
-            result = item["result"]
-
-            if "travel" in result:
-                travel = result["travel"]
-
-            if "research" in result:
-                research = result["research"]
-
-        destination = travel.get("destination", "Unknown")
-        days = travel.get("days", 3)
-
-        places = research.get("top_places", [])
-        foods = research.get("local_food", [])
-
-        itinerary = []
-
-        for day in range(days):
-
-            morning = ""
-            afternoon = ""
-            evening = ""
-
-            if places:
-                morning = places[day % len(places)]
-
-            if len(places) > 1:
-                afternoon = places[(day + 1) % len(places)]
-
-            if foods:
-                evening = f"Enjoy {foods[day % len(foods)]}"
-            else:
-                evening = f"Explore local food in {destination}"
-
-            itinerary.append({
-                "day": day + 1,
-                "morning": morning,
-                "afternoon": afternoon,
-                "evening": evening
-            })
-
-            log_step(
-                state,
-                "Itinerary Agent",
-                "Itinerary generated"
-            )
+        prompt = (
+            f"Create a {nights}-day travel itinerary for {travel.destination}. "
+            f"Travellers: {travel.travellers}. "
+            "Each day should have a short theme and 3-5 concrete, ordered activities."
+        )
+        plan = self._itinerary_parser.invoke(prompt)
 
         return {
-            "destination": destination,
-            "days": days,
-            "itinerary": itinerary
+            "action": action,
+            "itinerary": {"destination": travel.destination, "days": [d.model_dump() for d in plan.days]},
         }
+
+    @staticmethod
+    def _nights(travel) -> int:
+        if travel.start_date and travel.end_date:
+            try:
+                start = datetime.fromisoformat(travel.start_date).date()
+                end = datetime.fromisoformat(travel.end_date).date()
+                return max((end - start).days, 1)
+            except ValueError:
+                pass
+        return 3

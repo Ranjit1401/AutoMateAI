@@ -1,28 +1,20 @@
-from app.tools.weather_tool import WeatherTool
-from app.tools.flight_tool import FlightTool
-from app.tools.hotel_tool import HotelTool
+"""Single tool registry (the old duplicate tools/tool_registry.py has been
+removed — everything imports this one)."""
+from app.tools.base import BaseTool
 
 
 class ToolRegistry:
+    def __init__(self) -> None:
+        self._tools: dict[str, BaseTool] = {}
 
-    def __init__(self):
-        self._tools = {}
-
-    def register(self, tool):
+    def register(self, tool: BaseTool) -> None:
         self._tools[tool.name] = tool
 
-    def get(self, name: str):
+    def get(self, name: str) -> BaseTool | None:
         return self._tools.get(name)
 
-    def list_tools(self):
+    def list_tools(self) -> list[str]:
         return list(self._tools.keys())
 
 
 tool_registry = ToolRegistry()
-
-# Register all tools
-tool_registry.register(WeatherTool())
-tool_registry.register(FlightTool())
-tool_registry.register(HotelTool())
-
-print("Registered tools:", tool_registry.list_tools())

@@ -1,18 +1,17 @@
-"use client";
+'use client'
 
-const API = "http://localhost:8000";
+import { googleApi } from '@/lib/api'
 
 export default function GoogleConnect() {
   const connectGoogle = () => {
-    window.location.href = `${API}/google/login`;
-  };
+    // Fixed: this used to point at /google/login, which doesn't exist on
+    // the backend (the real route is /google/auth) — the button was a 404.
+    window.location.href = googleApi.connectUrl()
+  }
 
   return (
-    <button
-      onClick={connectGoogle}
-      className="rounded-xl bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 transition"
-    >
+    <button onClick={connectGoogle} className="btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}>
       Connect Google
     </button>
-  );
+  )
 }

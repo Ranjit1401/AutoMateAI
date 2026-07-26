@@ -3,6 +3,8 @@ from typing import Any, Dict, List, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from sqlalchemy.orm import Session
+
 from app.services.google.google_auth import get_credentials, GoogleAuthError
 
 
@@ -18,7 +20,9 @@ def create_calendar_event(
     timezone: str = "UTC",
     attendees: Optional[List[str]] = None,
     location: Optional[str] = None,
-    user_id: Optional[str] = None,
+    *,
+    db: Session,
+    user_id: str,
 ) -> Dict[str, Any]:
     """
     Creates an event on the authenticated user's primary calendar.
@@ -26,7 +30,7 @@ def create_calendar_event(
     """
 
     try:
-        credentials = get_credentials(user_id)
+        credentials = get_credentials(db, user_id)
         service = build("calendar", "v3", credentials=credentials)
 
         event_body: Dict[str, Any] = {

@@ -3,6 +3,8 @@ from typing import Any, Dict, List, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from sqlalchemy.orm import Session
+
 from app.services.google.google_auth import get_credentials, GoogleAuthError
 
 
@@ -14,7 +16,9 @@ def append_sheet_row(
     spreadsheet_id: str,
     values: List[str],
     range_name: str = "Sheet1!A1",
-    user_id: Optional[str] = None,
+    *,
+    db: Session,
+    user_id: str,
 ) -> Dict[str, Any]:
     """
     Appends a single row of `values` to `spreadsheet_id`, right after the
@@ -22,7 +26,7 @@ def append_sheet_row(
     """
 
     try:
-        credentials = get_credentials(user_id)
+        credentials = get_credentials(db, user_id)
         service = build("sheets", "v4", credentials=credentials)
 
         body = {"values": [values]}

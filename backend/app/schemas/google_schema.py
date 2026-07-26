@@ -17,10 +17,6 @@ class SendEmailRequest(BaseModel):
 
     is_html: bool = Field(default=False, description="Set true if `body` is HTML")
 
-    user_id: Optional[str] = Field(
-        default=None,
-        description="Internal user id used to look up stored Google OAuth credentials."
-    )
 
 
 class CreateCalendarEventRequest(BaseModel):
@@ -39,7 +35,6 @@ class CreateCalendarEventRequest(BaseModel):
 
     location: Optional[str] = Field(default=None)
 
-    user_id: Optional[str] = Field(default=None)
 
 
 class UploadFileRequest(BaseModel):
@@ -52,7 +47,6 @@ class UploadFileRequest(BaseModel):
 
     folder_id: Optional[str] = Field(default=None, description="Target Drive folder id")
 
-    user_id: Optional[str] = Field(default=None)
 
 
 class AppendSheetRowRequest(BaseModel):
@@ -63,4 +57,3 @@ class AppendSheetRowRequest(BaseModel):
 
     values: List[str] = Field(description="Row values to append, in column order")
 
-    user_id: Optional[str] = Field(default=None)

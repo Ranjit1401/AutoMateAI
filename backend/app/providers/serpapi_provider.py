@@ -1,80 +1,40 @@
-import os
+"""
+SerpApi wrapper (Google Flights / Google Hotels). Lazily initialized so a
+missing API key doesn't crash the whole app at import time — the previous
+version raised ValueError at module load, which meant nothing in
+`app.tools` could even be imported without SERPAPI_API_KEY set. Now the
+error only surfaces when a flight/hotel search is actually attempted.
+"""
 from datetime import datetime, timedelta
-from serpapi.google_search import GoogleSearch
-class Cache:
 
-    def __init__(self):
-        self.cache = {}
-        self.expiry = timedelta(hours=1)
+from serpapi import GoogleSearch
 
-    def get(self, key):
+from app.core.config import settings
+from app.core.logging_config import get_logger
+from app.providers.cache import TTLCache
 
-        if key not in self.cache:
-            return None
-
-        value, timestamp = self.cache[key]
-
-        if datetime.now() - timestamp > self.expiry:
-            del self.cache[key]
-            return None
-
-        return value
-
-    def set(self, key, value):
-
-        self.cache[key] = (
-            value,
-            datetime.now()
-        )
-
-
-cache = Cache()
+logger = get_logger(__name__)
 
 
 class SerpAPIProvider:
+    def __init__(self) -> None:
+        self._cache = TTLCache(ttl=timedelta(hours=1))
 
-    def __init__(self):
+    def _require_key(self) -> str:
+        if not settings.SERPAPI_API_KEY:
+            raise RuntimeError("SERPAPI_API_KEY is not configured.")
+        return settings.SERPAPI_API_KEY
 
-        self.api_key = os.getenv("SERPAPI_API_KEY")
+    def search_flights(self, departure_id: str, arrival_id: str, outbound_date: str) -> dict:
+        outbound = datetime.strptime(outbound_date, "%Y-%m-%d")
+        return_date = (outbound + timedelta(days=5)).strftime("%Y-%m-%d")
 
-        if not self.api_key:
-            raise ValueError(
-                "SERPAPI_API_KEY not found in environment variables."
-            )
-
-    ####################################################################
-    # Flights
-    ####################################################################
-
-    def search_flights(
-        self,
-        departure_id: str,
-        arrival_id: str,
-        outbound_date: str,
-    ):
-    
-        outbound = datetime.strptime(
-            outbound_date,
-            "%Y-%m-%d"
-        )
-    
-        return_date = (
-            outbound + timedelta(days=5)
-        ).strftime("%Y-%m-%d")
-    
-        cache_key = (
-            f"flight-"
-            f"{departure_id}-"
-            f"{arrival_id}-"
-            f"{outbound_date}"
-        )
-    
-        cached = cache.get(cache_key)
-    
-        if cached:
-            print("✅ Flight cache hit")
+        cache_key = f"flight-{departure_id}-{arrival_id}-{outbound_date}"
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            logger.debug("Flight cache hit: %s", cache_key)
             return cached
-    
+
         params = {
             "engine": "google_flights",
             "departure_id": departure_id,
@@ -83,42 +43,18 @@ class SerpAPIProvider:
             "return_date": return_date,
             "currency": "INR",
             "hl": "en",
-            "api_key": self.api_key,
+            "api_key": self._require_key(),
         }
-    
-        try:
-        
-            search = GoogleSearch(params)
-    
-            results = search.get_dict()
-    
-            cache.set(cache_key, results)
-    
-            return results
-    
-        except Exception as e:
-        
-            print(e)
-    
-            return {}
 
-    ####################################################################
-    # Hotels
-    ####################################################################
+        results = GoogleSearch(params).get_dict()
+        self._cache.set(cache_key, results)
+        return results
 
-    def search_hotels(
-        self,
-        location: str,
-        check_in_date=None,
-        check_out_date=None,
-    ):
-
-        cache_key = f"hotel-{location}"
-
-        cached = cache.get(cache_key)
-
-        if cached:
-            print("✅ Hotel cache hit")
+    def search_hotels(self, location: str, check_in_date: str | None = None, check_out_date: str | None = None) -> dict:
+        cache_key = f"hotel-{location}-{check_in_date}-{check_out_date}"
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            logger.debug("Hotel cache hit: %s", cache_key)
             return cached
 
         params = {
@@ -126,70 +62,28 @@ class SerpAPIProvider:
             "q": location,
             "currency": "INR",
             "hl": "en",
-            "api_key": self.api_key,
+            "api_key": self._require_key(),
         }
-
         if check_in_date:
             params["check_in_date"] = check_in_date
-
         if check_out_date:
             params["check_out_date"] = check_out_date
 
-        try:
+        results = GoogleSearch(params).get_dict()
+        self._cache.set(cache_key, results)
+        return results
 
-            search = GoogleSearch(params)
-
-            results = search.get_dict()
-
-            cache.set(cache_key, results)
-
-            return results
-
-        except Exception as e:
-
-            print(f"[SerpAPI Hotel Error] {e}")
-
-            return {}
-
-    ####################################################################
-    # Places
-    ####################################################################
-
-    def search_places(
-        self,
-        query: str,
-    ):
-
-        cache_key = f"places-{query}"
-
-        cached = cache.get(cache_key)
-
-        if cached:
-            print("✅ Places cache hit")
+    def search_web(self, query: str) -> dict:
+        cache_key = f"web-{query}"
+        cached = self._cache.get(cache_key)
+        if cached is not None:
+            logger.debug("Web search cache hit: %s", cache_key)
             return cached
 
-        params = {
-            "engine": "google",
-            "q": query,
-            "hl": "en",
-            "api_key": self.api_key,
-        }
-
-        try:
-
-            search = GoogleSearch(params)
-
-            results = search.get_dict()
-
-            cache.set(cache_key, results)
-
-            return results
-
-        except Exception as e:
-
-            print(f"[SerpAPI Places Error] {e}")
-
-            return {}
+        params = {"engine": "google", "q": query, "hl": "en", "api_key": self._require_key()}
+        results = GoogleSearch(params).get_dict()
+        self._cache.set(cache_key, results)
+        return results
 
 
 serp_provider = SerpAPIProvider()

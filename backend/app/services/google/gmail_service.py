@@ -5,6 +5,8 @@ from typing import Any, Dict, List, Optional
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+from sqlalchemy.orm import Session
+
 from app.services.google.google_auth import get_credentials, GoogleAuthError
 
 
@@ -19,14 +21,16 @@ def send_email(
     cc: Optional[List[str]] = None,
     bcc: Optional[List[str]] = None,
     is_html: bool = False,
-    user_id: Optional[str] = None,
+    *,
+    db: Session,
+    user_id: str,
 ) -> Dict[str, Any]:
     """
     Sends an email through the authenticated user's Gmail account.
     """
 
     try:
-        credentials = get_credentials(user_id)
+        credentials = get_credentials(db, user_id)
         service = build("gmail", "v1", credentials=credentials)
 
         mime_message = MIMEText(body, "html" if is_html else "plain")

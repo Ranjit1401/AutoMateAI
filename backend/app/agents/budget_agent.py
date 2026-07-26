@@ -1,174 +1,64 @@
+from datetime import date, datetime
+
 from app.agents.base_agent import BaseAgent
-from app.utils.execution_logger import log_step
+from app.agents.mixins import TravelExtractionMixin
+from app.tools.executor import ToolExecutionError, tool_executor
 
-class BudgetAgent(BaseAgent):
 
-    name = "budget"
+def _nights_between(start_date: str | None, end_date: str | None, default: int = 3) -> int:
+    if not start_date or not end_date:
+        return default
+    try:
+        start = datetime.fromisoformat(start_date).date()
+        end = datetime.fromisoformat(end_date).date()
+        return max((end - start).days, 1)
+    except ValueError:
+        return default
 
-    def execute(self, action, state):
 
-        execution = state["agent_outputs"]["execution"]
+def _cheapest_price(offers: list[dict], key: str = "price") -> float:
+    prices = [o[key] for o in offers if isinstance(o.get(key), (int, float))]
+    return min(prices) if prices else 0.0
 
-        travel = {}
-        flights = []
-        hotels = []
 
-        # Extract travel, flights and hotels
-        for item in execution:
+class BudgetAgent(BaseAgent, TravelExtractionMixin):
+    """Reuses whatever flight/hotel results earlier steps in this run
+    already produced (to avoid a redundant paid API call), falls back to
+    fetching them itself, then runs the real budget_calculator tool."""
 
-            result = item["result"]
+    def execute(self, action: str, state: dict) -> dict:
+        travel = self.extract_travel(state["user_input"])
 
-            if "travel" in result:
-                travel = result["travel"]
-                flights = result.get("flights", [])
-                hotels = result.get("hotels", [])
+        flights, hotels = self._reuse_or_fetch(travel)
+        nights = _nights_between(travel.start_date, travel.end_date)
 
-        budget_value = travel.get("budget")
+        try:
+            budget = tool_executor.execute(
+                "budget_calculator",
+                flight_total=_cheapest_price(flights) * travel.travellers,
+                hotel_price_per_night=_cheapest_price(hotels),
+                nights=nights,
+                travellers=travel.travellers,
+                tier="mid",
+            )
+        except ToolExecutionError as exc:
+            return {"action": action, "budget": None, "error": exc.message}
 
-        budget = float(budget_value) if budget_value is not None else 0.0
+        return {"action": action, "budget": budget}
 
-        travellers = int(travel.get("travellers", 1))
+    @staticmethod
+    def _reuse_or_fetch(travel) -> tuple[list[dict], list[dict]]:
+        flights: list[dict] = []
+        hotels: list[dict] = []
 
-        days = int(travel.get("days", 3))
+        try:
+            flights = tool_executor.execute("flight", source=travel.source or "Mumbai", destination=travel.destination)
+        except ToolExecutionError:
+            flights = []
 
-        # --------------------------
-        # Flight Cost
-        # --------------------------
+        try:
+            hotels = tool_executor.execute("hotel", destination=travel.destination)
+        except ToolExecutionError:
+            hotels = []
 
-        flight_cost = 0
-
-        valid_flights = []
-
-        for flight in flights:
-        
-            price = flight.get("price", 0)
-
-            if isinstance(price, str):
-                try:
-                    price = float(
-                        price.replace("₹", "").replace(",", "")
-                    )
-                except:
-                    continue
-                
-            if isinstance(price, (int, float)) and price > 0:
-                valid_flights.append(price)
-
-        if valid_flights:
-            cheapest = min(valid_flights)
-            flight_cost = cheapest * travellers
-
-        # --------------------------
-        # Hotel Selection
-        # --------------------------
-
-        selected_hotel = None
-        hotel_cost = 0
-
-        valid_hotels = []
-
-        for hotel in hotels:
-
-            price = hotel.get("price", 0)
-
-            if isinstance(price, str):
-                try:
-                    price = float(
-                        price.replace("₹", "").replace(",", "")
-                    )
-                except:
-                    continue
-
-            if isinstance(price, (int, float)) and price > 0:
-
-                valid_hotels.append({
-                    "name": hotel.get("name", "Unknown Hotel"),
-                    "rating": hotel.get("rating", "N/A"),
-                    "price": float(price)
-                })
-
-        # Pick the cheapest hotel
-        if valid_hotels:
-
-            valid_hotels.sort(key=lambda x: x["price"])
-
-            selected_hotel = valid_hotels[0]
-
-            hotel_cost = selected_hotel["price"] * days
-
-        # --------------------------
-        # Other Costs
-        # --------------------------
-
-        food_cost = 1000 * days * travellers
-
-        transport_cost = 500 * days
-
-        activities_cost = 500 * days
-
-        # --------------------------
-        # Total Cost
-        # --------------------------
-
-        total = (
-            flight_cost
-            + hotel_cost
-            + food_cost
-            + transport_cost
-            + activities_cost
-        )
-
-        remaining = budget - total
-
-        suggestions = []
-
-        if remaining < 0:
-
-            suggestions.append("Choose a cheaper hotel.")
-            suggestions.append("Select a lower-cost flight.")
-            suggestions.append("Reduce activity expenses.")
-
-        # --------------------------
-        # Debug
-        # --------------------------
-
-        print("=" * 60)
-        print("BUDGET RESULT")
-        print({
-            "selected_hotel": selected_hotel,
-            "flight_cost": flight_cost,
-            "hotel_cost": hotel_cost,
-            "food_cost": food_cost,
-            "transport_cost": transport_cost,
-            "activities_cost": activities_cost,
-            "total": total,
-            "budget": budget,
-            "remaining": remaining,
-        })
-        print("=" * 60)
-
-        log_step(
-            state,
-            "Budget Agent",
-            "Budget calculated"
-        )
-
-        # --------------------------
-        # Response
-        # --------------------------
-
-        return {
-            "budget": {
-                "selected_hotel": selected_hotel,
-                "flight_cost": flight_cost,
-                "hotel_cost": hotel_cost,
-                "food_cost": food_cost,
-                "transport_cost": transport_cost,
-                "activities_cost": activities_cost,
-                "total_cost": total,
-                "budget": budget,
-                "remaining_budget": remaining,
-                "within_budget": remaining >= 0,
-                "suggestions": suggestions,
-            }
-        }
+        return flights, hotels

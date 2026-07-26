@@ -21,6 +21,12 @@ node_modules/
 # Build
 dist/
 build/
+# Database
+*.db
+*.db-journal
 
+# Generated files
+backend/generated_files/*.pdf
 
-frontend1/
+# Alembic
+!backend/alembic/versions/.gitkeep

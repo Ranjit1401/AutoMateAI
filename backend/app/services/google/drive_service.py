@@ -6,6 +6,8 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseUpload
 
+from sqlalchemy.orm import Session
+
 from app.services.google.google_auth import get_credentials, GoogleAuthError
 
 
@@ -18,14 +20,16 @@ def upload_file(
     file_content_base64: str,
     mime_type: str = "application/octet-stream",
     folder_id: Optional[str] = None,
-    user_id: Optional[str] = None,
+    *,
+    db: Session,
+    user_id: str,
 ) -> Dict[str, Any]:
     """
     Uploads a base64 encoded file to the authenticated user's Google Drive.
     """
 
     try:
-        credentials = get_credentials(user_id)
+        credentials = get_credentials(db, user_id)
         service = build("drive", "v3", credentials=credentials)
 
         file_bytes = base64.b64decode(file_content_base64)

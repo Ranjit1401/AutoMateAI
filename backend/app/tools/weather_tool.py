@@ -1,30 +1,28 @@
 import requests
 
 from app.core.config import settings
-from app.tools.base import BaseTool
+from app.tools.base import BaseTool, ToolError
 
 
 class WeatherTool(BaseTool):
-
     name = "weather"
+    description = "Returns live current weather for a city."
 
-    description = "Returns live weather information for a city."
+    def execute(self, city: str) -> dict:
+        if not settings.OPENWEATHER_API_KEY:
+            raise ToolError("OPENWEATHER_API_KEY is not configured.")
 
-    def execute(self, city: str):
-
-        url = "https://api.openweathermap.org/data/2.5/weather"
-
-        params = {
-            "q": city,
-            "appid": settings.OPENWEATHER_API_KEY,
-            "units": "metric",
-        }
-
-        response = requests.get(url, params=params, timeout=10)
-        response.raise_for_status()
+        try:
+            response = requests.get(
+                "https://api.openweathermap.org/data/2.5/weather",
+                params={"q": city, "appid": settings.OPENWEATHER_API_KEY, "units": "metric"},
+                timeout=10,
+            )
+            response.raise_for_status()
+        except requests.RequestException as exc:
+            raise ToolError(f"Weather lookup failed for '{city}': {exc}") from exc
 
         data = response.json()
-
         return {
             "city": city,
             "temperature": data["main"]["temp"],

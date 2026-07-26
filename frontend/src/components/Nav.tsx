@@ -1,13 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Home, MessageSquare, Brain, Plug, ScrollText, Settings, User } from 'lucide-react'
-import type { ElementType } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Home, MessageSquare, Brain, Plug, ScrollText, Settings, User, LogOut, ListChecks } from 'lucide-react'
+import { useState, type ElementType } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
 
 const navItems: { href: string; label: string; icon: ElementType }[] = [
   { href: '/', label: 'Home', icon: Home },
   { href: '/chat', label: 'Chat', icon: MessageSquare },
+  { href: '/tasks', label: 'Tasks', icon: ListChecks },
   { href: '/memory', label: 'Memory', icon: Brain },
   { href: '/apps', label: 'Connected Apps', icon: Plug },
   { href: '/logs', label: 'Logs', icon: ScrollText },
@@ -16,6 +18,15 @@ const navItems: { href: string; label: string; icon: ElementType }[] = [
 
 export default function Nav() {
   const pathname = usePathname()
+  const router = useRouter()
+  const { user, logout } = useAuth()
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  const handleLogout = async () => {
+    setMenuOpen(false)
+    await logout()
+    router.push('/login')
+  }
 
   return (
     <header
@@ -125,22 +136,83 @@ export default function Nav() {
         </nav>
 
         {/* User avatar */}
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.08)',
-            border: '1px solid rgba(255,255,255,0.14)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            flexShrink: 0,
-            marginLeft: 8,
-          }}
-        >
-          <User size={15} color="white" />
+        <div style={{ position: 'relative', marginLeft: 8 }}>
+          <button
+            onClick={() => setMenuOpen((open) => !open)}
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: '50%',
+              background: 'rgba(255,255,255,0.08)',
+              border: '1px solid rgba(255,255,255,0.14)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              flexShrink: 0,
+              padding: 0,
+            }}
+          >
+            <User size={15} color="white" />
+          </button>
+
+          {menuOpen && (
+            <div
+              className="glass"
+              style={{
+                position: 'absolute',
+                top: 42,
+                right: 0,
+                minWidth: 200,
+                padding: 10,
+                borderRadius: 12,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+              }}
+            >
+              {user ? (
+                <>
+                  <div style={{ padding: '6px 8px 10px', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
+                    Signed in as
+                    <div style={{ color: 'white', fontSize: 13, fontWeight: 500, marginTop: 2 }}>{user.email}</div>
+                  </div>
+                  <button
+                    onClick={handleLogout}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '8px 8px',
+                      borderRadius: 8,
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'rgba(255,255,255,0.85)',
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <LogOut size={14} /> Log out
+                  </button>
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  onClick={() => setMenuOpen(false)}
+                  style={{
+                    display: 'block',
+                    padding: '8px 8px',
+                    borderRadius: 8,
+                    color: 'white',
+                    fontSize: 13,
+                    textDecoration: 'none',
+                  }}
+                >
+                  Sign in
+                </Link>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Aurora from '@/components/Aurora'
 import Nav from '@/components/Nav'
+import { AuthProvider } from '@/contexts/AuthContext'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -26,9 +27,11 @@ export default function RootLayout({
           overflowX: 'hidden',
         }}
       >
-        <Aurora />
-        <Nav />
-        <main style={{ position: 'relative', zIndex: 1 }}>{children}</main>
+        <AuthProvider>
+          <Aurora />
+          <Nav />
+          <main style={{ position: 'relative', zIndex: 1 }}>{children}</main>
+        </AuthProvider>
       </body>
     </html>
   )

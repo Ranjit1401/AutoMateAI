@@ -1,94 +1,20 @@
 'use client'
-import { sendMessage } from '@/lib/api'
+
 import { useState, useRef, useEffect } from 'react'
-import { Sparkles, Mic, Paperclip, CheckCircle, Loader2, User } from 'lucide-react'
+import { Sparkles, User, Loader2 } from 'lucide-react'
+import { chatApi, ApiError } from '@/lib/api'
 
-interface ExecutionStep {
-  agent: string
-  status: string
-  message: string
-}
-
-interface Message {
+interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
-  execution?: ExecutionStep[]
-  tools?: ToolCard[]
-  streaming?: boolean
 }
 
-interface ToolCard {
-  name: string
-  status: 'running' | 'done'
-  result?: string
-  icon: React.ElementType
-  color: string
-}
-
-const INITIAL_MESSAGES: Message[] = []
-
-function ToolExecCard({ tool }: { tool: ToolCard }) {
-  const Icon = tool.icon
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        padding: '8px 12px',
-        borderRadius: 10,
-        background: 'rgba(255,255,255,0.03)',
-        border: '1px solid rgba(255,255,255,0.06)',
-        marginBottom: 6,
-      }}
-    >
-      <div
-        style={{
-          width: 24,
-          height: 24,
-          borderRadius: 6,
-          background: `${tool.color}18`,
-          border: `1px solid ${tool.color}30`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          flexShrink: 0,
-        }}
-      >
-        {tool.status === 'running' ? (
-          <Loader2 size={11} color={tool.color} style={{ animation: 'spin 1s linear infinite' }} />
-        ) : (
-          <Icon size={11} color={tool.color} />
-        )}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, color: '#a1a1aa', fontWeight: 500 }}>{tool.name}</div>
-        {tool.result && (
-          <div style={{ fontSize: 11, color: '#52525b', marginTop: 2 }}>{tool.result}</div>
-        )}
-      </div>
-      {tool.status === 'done' && <CheckCircle size={13} color="#10b981" />}
-    </div>
-  )
-}
-
-function TypingIndicator() {
-  return (
-    <div style={{ display: 'flex', gap: 4, alignItems: 'center', padding: '8px 0' }}>
-      {[0, 1, 2].map(i => (
-        <div
-          key={i}
-          style={{
-            width: 6,
-            height: 6,
-            borderRadius: '50%',
-            background: '#a855f7',
-            animation: `typing-dot 1.4s ease-in-out ${i * 0.2}s infinite`,
-          }}
-        />
-      ))}
-    </div>
-  )
+const NODE_LABELS: Record<string, string> = {
+  router: 'Classifying your request…',
+  planner: 'Planning the steps…',
+  supervisor: 'Assigning specialized agents…',
+  execute_agents: 'Running agents (weather, flights, maps, etc.)…',
+  response: 'Putting the answer together…',
 }
 
 function MessageContent({ content }: { content: string }) {
@@ -100,7 +26,7 @@ function MessageContent({ content }: { content: string }) {
         return (
           <p
             key={i}
-            style={{ margin: '2px 0', fontSize: 14, color: i === 0 && line === '' ? undefined : 'white' }}
+            style={{ margin: '2px 0', fontSize: 14, color: 'white' }}
             dangerouslySetInnerHTML={{ __html: boldProcessed || '&nbsp;' }}
           />
         )
@@ -109,56 +35,54 @@ function MessageContent({ content }: { content: string }) {
   )
 }
 
+function StatusIndicator({ label }: { label: string }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0' }}>
+      <Loader2 size={13} color="#a855f7" style={{ animation: 'spin 1s linear infinite' }} />
+      <span style={{ fontSize: 13, color: '#a1a1aa' }}>{label}</span>
+    </div>
+  )
+}
+
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES)
+  const [messages, setMessages] = useState<ChatMessage[]>([])
   const [input, setInput] = useState('')
-  const [isTyping, setIsTyping] = useState(false)
+  const [statusLabel, setStatusLabel] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [conversationId, setConversationId] = useState<string | undefined>(undefined)
   const endRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, isTyping])
+  }, [messages, statusLabel])
 
   const handleSend = async () => {
-    if (!input.trim()) return
+    const text = input.trim()
+    if (!text || statusLabel) return
 
-    const question = input
-
-    setMessages(prev => [
-      ...prev,
-      {
-        role: 'user',
-        content: question,
-      },
-    ])
-
-    setInput("")
-    setIsTyping(true)
+    setMessages((prev) => [...prev, { role: 'user', content: text }])
+    setInput('')
+    setError(null)
+    setStatusLabel('Thinking…')
 
     try {
-      const data = await sendMessage(question)
-
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: data.response,
-          execution: data.execution ?? [],
-        },
-      ])
+      await chatApi.stream(text, conversationId, (event, data) => {
+        if (event === 'start') {
+          setConversationId(data.conversation_id)
+        } else if (event === 'progress') {
+          setStatusLabel(NODE_LABELS[data.node] || 'Working…')
+        } else if (event === 'error') {
+          setError(data.detail || 'Something went wrong.')
+          setStatusLabel(null)
+        } else if (event === 'done') {
+          setMessages((prev) => [...prev, { role: 'assistant', content: data.response }])
+          setStatusLabel(null)
+        }
+      })
     } catch (err) {
-      setMessages(prev => [
-        ...prev,
-        {
-          role: 'assistant',
-          content: "❌ Unable to connect to the backend.",
-        },
-      ])
-
-      console.error(err)
-    } finally {
-      setIsTyping(false)
+      setError(err instanceof ApiError ? err.message : 'Failed to reach AutoMateAI. Please try again.')
+      setStatusLabel(null)
     }
   }
 
@@ -174,23 +98,10 @@ export default function Chat() {
       }}
     >
       {/* Messages */}
-      <div
-        style={{
-          flex: 1,
-          overflowY: 'auto',
-          padding: '24px 24px 8px',
-        }}
-      >
+      <div style={{ flex: 1, overflowY: 'auto', padding: '24px 24px 8px' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
-          {messages.length === 0 && !isTyping && (
-            <div
-              style={{
-                textAlign: 'center',
-                padding: '80px 24px',
-                color: '#52525b',
-                fontSize: 14,
-              }}
-            >
+          {messages.length === 0 && !statusLabel && (
+            <div style={{ textAlign: 'center', padding: '80px 24px', color: '#52525b', fontSize: 14 }}>
               No messages yet. Start a conversation below.
             </div>
           )}
@@ -231,86 +142,14 @@ export default function Chat() {
                     msg.role === 'user'
                       ? 'linear-gradient(135deg, rgba(168,85,247,0.2), rgba(99,102,241,0.15))'
                       : 'rgba(255,255,255,0.04)',
-                  border:
-                    msg.role === 'user'
-                      ? '1px solid rgba(168,85,247,0.25)'
-                      : '1px solid rgba(255,255,255,0.07)',
+                  border: msg.role === 'user' ? '1px solid rgba(168,85,247,0.25)' : '1px solid rgba(255,255,255,0.07)',
                   borderRadius: msg.role === 'user' ? '18px 18px 4px 18px' : '4px 18px 18px 18px',
                   padding: '12px 16px',
                   backdropFilter: 'blur(12px)',
+                  whiteSpace: 'pre-wrap',
                 }}
               >
-                {msg.tools && msg.tools.length > 0 && (
-                  <div style={{ marginBottom: 12 }}>
-                    {msg.tools.map((tool, j) => (
-                      <ToolExecCard key={j} tool={tool} />
-                    ))}
-                  </div>
-                )}
                 <MessageContent content={msg.content} />
-                  {msg.execution && msg.execution.length > 0 && (
-    <div
-      style={{
-        marginBottom: 16,
-        padding: 12,
-        borderRadius: 12,
-        background: "rgba(168,85,247,0.08)",
-        border: "1px solid rgba(168,85,247,0.15)",
-      }}
-    >
-      <div
-        style={{
-          fontWeight: 600,
-          color: "#c084fc",
-          marginBottom: 10,
-        }}
-      >
-        ⚡ AI Execution
-      </div>
-      
-      {msg.execution.map((step, index) => (
-          <div
-            key={index}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 10,
-              marginBottom: 8,
-            }}  
-          > 
-            <div
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "#22c55e",
-                }}
-            />  
-    
-            <div>
-                <div
-                  style={{
-                    color: "white",
-                    fontWeight: 500,
-                    fontSize: 13,
-                  }}
-                >
-                  {step.agent}
-                </div>
-              
-              <div
-                style={{
-                  color: "#9ca3af",
-                  fontSize: 12,
-                }}
-              >
-                {step.message}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-    )}
               </div>
 
               {msg.role === 'user' && (
@@ -334,7 +173,7 @@ export default function Chat() {
             </div>
           ))}
 
-          {isTyping && (
+          {statusLabel && (
             <div style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
               <div
                 style={{
@@ -356,12 +195,16 @@ export default function Chat() {
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.07)',
                   borderRadius: '4px 18px 18px 18px',
-                  padding: '12px 16px',
+                  padding: '10px 16px',
                 }}
               >
-                <TypingIndicator />
+                <StatusIndicator label={statusLabel} />
               </div>
             </div>
+          )}
+
+          {error && (
+            <div style={{ color: '#f87171', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>{error}</div>
           )}
 
           <div ref={endRef} />
@@ -369,13 +212,7 @@ export default function Chat() {
       </div>
 
       {/* Input */}
-      <div
-        style={{
-          padding: '12px 24px 20px',
-          backdropFilter: 'blur(24px)',
-          borderTop: '1px solid rgba(255,255,255,0.06)',
-        }}
-      >
+      <div style={{ padding: '12px 24px 20px', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ maxWidth: 720, margin: '0 auto' }}>
           <div
             className="glass"
@@ -391,14 +228,14 @@ export default function Chat() {
             <textarea
               ref={inputRef}
               value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={e => {
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault()
                   handleSend()
                 }
               }}
-              placeholder="Ask AutoMateAI anything..."
+              placeholder="Ask AutoMateAI anything... (e.g. Plan a 3-day trip from Mumbai to Goa)"
               rows={1}
               style={{
                 flex: 1,
@@ -415,13 +252,7 @@ export default function Chat() {
               }}
             />
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              <button className="btn-glass" style={{ padding: '6px', borderRadius: 8 }}>
-                <Paperclip size={14} color="#52525b" />
-              </button>
-              <button className="btn-glass" style={{ padding: '6px', borderRadius: 8 }}>
-                <Mic size={14} color="#52525b" />
-              </button>
-              <button className="btn-primary" style={{ padding: '8px 14px', fontSize: 13 }} onClick={handleSend}>
+              <button className="btn-primary" style={{ padding: '8px 14px', fontSize: 13 }} onClick={handleSend} disabled={!!statusLabel}>
                 Send
               </button>
             </div>

@@ -4,11 +4,7 @@ from twilio.base.exceptions import TwilioRestException
 from twilio.rest import Client
 from twilio.request_validator import RequestValidator
 
-from app.config.settings import (
-    TWILIO_ACCOUNT_SID,
-    TWILIO_AUTH_TOKEN,
-    TWILIO_PHONE_NUMBER,
-)
+from app.core.config import settings
 
 
 class TwilioServiceError(Exception):
@@ -17,10 +13,10 @@ class TwilioServiceError(Exception):
 
 def _get_client() -> Client:
 
-    if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
+    if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN:
         raise TwilioServiceError("TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN are not configured.")
 
-    return Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+    return Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
 
 
 def make_outgoing_call(
@@ -34,7 +30,7 @@ def make_outgoing_call(
     URL returning TwiML) that Twilio will fetch once the call connects.
     """
 
-    caller_id = from_number or TWILIO_PHONE_NUMBER
+    caller_id = from_number or settings.TWILIO_PHONE_NUMBER
 
     if not caller_id:
         raise TwilioServiceError("No from_number provided and TWILIO_PHONE_NUMBER is not configured.")
@@ -68,7 +64,7 @@ def send_sms(
     from_number: Optional[str] = None,
 ) -> Dict[str, Any]:
 
-    sender = from_number or TWILIO_PHONE_NUMBER
+    sender = from_number or settings.TWILIO_PHONE_NUMBER
 
     if not sender:
         raise TwilioServiceError("No from_number provided and TWILIO_PHONE_NUMBER is not configured.")
@@ -99,10 +95,10 @@ def validate_webhook_signature(url: str, params: Dict[str, Any], signature: str)
     before trusting the request body, when TWILIO_VALIDATE_SIGNATURE=true.
     """
 
-    if not TWILIO_AUTH_TOKEN:
+    if not settings.TWILIO_AUTH_TOKEN:
         raise TwilioServiceError("TWILIO_AUTH_TOKEN is not configured.")
 
-    validator = RequestValidator(TWILIO_AUTH_TOKEN)
+    validator = RequestValidator(settings.TWILIO_AUTH_TOKEN)
     return validator.validate(url, params, signature)
 
 
