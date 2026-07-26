@@ -1,34 +1,51 @@
 import { NextResponse, type NextRequest } from 'next/server'
 
-// Must match backend AUTH_COOKIE_NAME (app/core/config.py). Checking for the
-// cookie's presence here is a fast, no-flash redirect; the pages themselves
-// still verify the session is actually valid via AuthContext (a present but
-// expired/tampered cookie is rejected server-side on the first API call).
-const SESSION_COOKIE = 'automateai_session'
+// The middleware does a fast, optimistic check for the httpOnly session cookie
+// set by the backend.  In cross-origin production deployments (Vercel → Render)
+// the cookie may be blocked by the browser's third-party cookie policy, so the
+// frontend falls back to Bearer token auth stored in localStorage.
+//
+// localStorage is NOT accessible in middleware (it runs in the Edge runtime).
+// We therefore treat the cookie absence as "possibly not authenticated, let the
+// page decide" rather than "definitely logged out" — the AuthContext on the
+// client re-validates via /auth/me with the Bearer header and redirects to
+// /login if the session is actually invalid.
+//
+// The ONLY hard redirect from middleware is when we're confident the user is
+// already authenticated (cookie IS present) and they try to visit login/signup
+// — we send them to /chat to avoid a flash of the login page.
 
-const PROTECTED_PREFIXES = ['/chat', '/tasks', '/apps', '/memory', '/logs', '/settings']
+const SESSION_COOKIE = 'automateai_session'
 const AUTH_PAGES = ['/login', '/signup']
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
-  const hasSession = Boolean(request.cookies.get(SESSION_COOKIE))
-
-  const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p))
+  const hasSessionCookie = Boolean(request.cookies.get(SESSION_COOKIE))
   const isAuthPage = AUTH_PAGES.some((p) => pathname.startsWith(p))
 
-  if (isProtected && !hasSession) {
-    const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('next', pathname)
-    return NextResponse.redirect(loginUrl)
-  }
-
-  if (isAuthPage && hasSession) {
+  // If the user has a valid cookie AND is on an auth page, redirect to /chat.
+  // (This prevents a flash of the login form for already-logged-in users.)
+  if (isAuthPage && hasSessionCookie) {
     return NextResponse.redirect(new URL('/chat', request.url))
   }
+
+  // For protected routes: we do NOT block here because the cookie may be
+  // absent even for authenticated users (Bearer-only cross-origin flow).
+  // Each protected page's AuthContext will call /auth/me and redirect to
+  // /login client-side if the session is truly invalid.
 
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/chat/:path*', '/tasks/:path*', '/apps/:path*', '/memory/:path*', '/logs/:path*', '/settings/:path*', '/login', '/signup'],
+  matcher: [
+    '/chat/:path*',
+    '/tasks/:path*',
+    '/apps/:path*',
+    '/memory/:path*',
+    '/logs/:path*',
+    '/settings/:path*',
+    '/login',
+    '/signup',
+  ],
 }

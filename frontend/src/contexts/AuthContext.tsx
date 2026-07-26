@@ -1,7 +1,7 @@
 'use client'
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { authApi, type User } from '@/lib/api'
+import { authApi, setStoredToken, clearStoredToken, getStoredToken, type User } from '@/lib/api'
 
 interface AuthContextValue {
   user: User | null
@@ -15,9 +15,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | undefined>(undefined)
 
 // Silent-refresh interval: call /auth/refresh every 20 minutes while logged in.
-// This slides the cookie expiry forward so the session persists across long
-// browser sessions without requiring the user to log in again.
-const SILENT_REFRESH_INTERVAL_MS = 20 * 60 * 1000 // 20 minutes
+const SILENT_REFRESH_INTERVAL_MS = 20 * 60 * 1000
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
@@ -35,22 +33,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     stopSilentRefresh()
     silentRefreshTimer.current = setInterval(async () => {
       try {
-        // /auth/refresh re-issues the session cookie, extending its expiry.
-        // If the cookie is already expired this will 401 — that's fine, we
-        // just clear the user state so the UI redirects to login.
-        await authApi.refresh()
+        const data = await authApi.refresh()
+        // Refresh returns a new token — update localStorage so subsequent
+        // requests use the fresh token.
+        setStoredToken(data.access_token)
       } catch {
+        clearStoredToken()
         setUser(null)
         stopSilentRefresh()
       }
     }, SILENT_REFRESH_INTERVAL_MS)
   }, [stopSilentRefresh])
 
+  // On mount: check if there's a stored token and validate it with /auth/me.
   const refresh = useCallback(async () => {
     try {
       const me = await authApi.me()
       setUser(me)
     } catch {
+      // Token expired or invalid — clear it so the middleware redirects to login.
+      clearStoredToken()
       setUser(null)
     } finally {
       setLoading(false)
@@ -58,7 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   useEffect(() => {
-    refresh()
+    // Only attempt /auth/me if we have a stored token (avoids unnecessary 401
+    // on every page load for non-logged-in users).
+    if (getStoredToken()) {
+      refresh()
+    } else {
+      setLoading(false)
+    }
   }, [refresh])
 
   // Start/stop the silent-refresh timer whenever the user changes.
@@ -72,18 +80,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user, startSilentRefresh, stopSilentRefresh])
 
   const login = useCallback(async (email: string, password: string) => {
-    const { user: loggedInUser } = await authApi.login(email, password)
-    setUser(loggedInUser)
+    const data = await authApi.login(email, password)
+    // Store the JWT returned in the response body — this is the Bearer token
+    // used for cross-origin requests where cookies are blocked.
+    setStoredToken(data.access_token)
+    setUser(data.user)
   }, [])
 
   const signup = useCallback(async (email: string, password: string, fullName?: string) => {
-    const { user: newUser } = await authApi.signup(email, password, fullName)
-    setUser(newUser)
+    const data = await authApi.signup(email, password, fullName)
+    setStoredToken(data.access_token)
+    setUser(data.user)
   }, [])
 
   const logout = useCallback(async () => {
     stopSilentRefresh()
-    await authApi.logout()
+    clearStoredToken()
+    try {
+      await authApi.logout()
+    } catch {
+      // Even if the server call fails, we clear the local token.
+    }
     setUser(null)
   }, [stopSilentRefresh])
 

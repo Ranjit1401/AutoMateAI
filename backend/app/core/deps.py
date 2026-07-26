@@ -1,12 +1,10 @@
 """
-DEPRECATED — this file previously used HTTPBearer (Authorization header) for
-auth. The application now uses httpOnly cookie-based sessions exclusively.
+DEPRECATED shim — re-exports from app.api.deps (the canonical auth module).
 
-All imports that used to come from here should now come from app.api.deps,
-which reads the session cookie set by /auth/login and /auth/signup.
+The application now uses dual-transport auth: httpOnly cookie for same-origin
+dev, and Authorization: Bearer header for cross-origin production deployments.
 
-This shim re-exports everything so any legacy import path still works without
-a code change on the caller side.
+All imports should come from app.api.deps directly.
 """
 from app.api.deps import get_current_user, get_db, get_optional_user  # noqa: F401
 
