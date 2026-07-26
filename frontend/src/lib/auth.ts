@@ -28,7 +28,8 @@ export async function signupAndStore(
   email: string,
   password: string,
 ): Promise<StoredUser> {
-  await authApi.signup(email, password, name)
+  const data = await authApi.signup(email, password, name)
+  setStoredToken(data.access_token)
 
   const user = await authApi.me()
   setUser(user)

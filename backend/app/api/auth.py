@@ -12,7 +12,11 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 logger = get_logger(__name__)
 
 
-def _set_session_cookie(response: Response, user_id: str) -> None:
+def _set_session_cookie(response: Response, user_id: str) -> str:
+    """Creates a JWT, sets it as an httpOnly cookie, AND returns it so callers
+    can also include it in the JSON response body.  The frontend uses whichever
+    transport works: cookie for same-origin dev, Bearer header for cross-origin
+    production deployments where third-party cookies are blocked."""
     token = create_access_token(user_id)
     # Cross-origin deployments (Vercel frontend + Render backend) require
     # SameSite=none so the browser will attach the cookie on cross-site
@@ -32,6 +36,8 @@ def _set_session_cookie(response: Response, user_id: str) -> None:
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
+    return token
+
 
 
 @router.post("/signup", response_model=AuthResponse, status_code=status.HTTP_201_CREATED)
@@ -52,8 +58,8 @@ def signup(payload: SignupRequest, response: Response, db: Session = Depends(get
     db.refresh(user)
 
     logger.info("New user signed up: %s", user.id)
-    _set_session_cookie(response, user.id)
-    return AuthResponse(user=UserOut.model_validate(user), access_token_expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = _set_session_cookie(response, user.id)
+    return AuthResponse(user=UserOut.model_validate(user), access_token=token, access_token_expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -65,8 +71,8 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This account has been deactivated.")
 
     logger.info("User logged in: %s", user.id)
-    _set_session_cookie(response, user.id)
-    return AuthResponse(user=UserOut.model_validate(user), access_token_expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = _set_session_cookie(response, user.id)
+    return AuthResponse(user=UserOut.model_validate(user), access_token=token, access_token_expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -89,8 +95,8 @@ def refresh(response: Response, user: User = Depends(get_current_user)):
     user is active. (A long-lived refresh token isn't held client-side here
     since the whole point of the cookie approach is not exposing tokens to
     JS; the current valid cookie itself is the refresh proof.)"""
-    _set_session_cookie(response, user.id)
-    return AuthResponse(user=UserOut.model_validate(user), access_token_expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = _set_session_cookie(response, user.id)
+    return AuthResponse(user=UserOut.model_validate(user), access_token=token, access_token_expires_in_minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
 
 
 @router.get("/me", response_model=UserOut)

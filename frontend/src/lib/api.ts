@@ -1,13 +1,46 @@
 /**
- * Typed backend API client. Cookie-based auth (the httpOnly session cookie
- * set by the backend on login/signup is sent automatically via
- * `credentials: 'include'`) — the frontend never touches a raw JWT.
+ * Typed backend API client.
  *
- * Replaces the old services/api.ts, which only had one function that was
- * never actually imported anywhere and didn't match the backend's request
- * shape.
+ * Auth strategy — dual transport to handle cross-origin browser cookie blocking:
+ *
+ * 1. The backend sets an httpOnly session cookie on login/signup (works for
+ *    same-origin local dev).
+ * 2. The backend ALSO returns the JWT in the response body.  The frontend
+ *    stores it in localStorage and attaches it as "Authorization: Bearer <token>"
+ *    on every request.  This is the path that works in production where browsers
+ *    (Chrome Privacy Sandbox, Safari ITP, Firefox ETP) block third-party cookies
+ *    even when SameSite=None; Secure is set.
+ *
+ * Both transports are sent simultaneously — the backend accepts whichever it sees.
  */
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+
+export const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL || 'https://automateai-ugwf.onrender.com'
+
+// ---------------------------------------------------------------------------
+// Token storage — localStorage for cross-origin Bearer auth
+// ---------------------------------------------------------------------------
+
+const TOKEN_KEY = 'automateai_token'
+
+export function getStoredToken(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function setStoredToken(token: string): void {
+  if (typeof window === 'undefined') return
+  localStorage.setItem(TOKEN_KEY, token)
+}
+
+export function clearStoredToken(): void {
+  if (typeof window === 'undefined') return
+  localStorage.removeItem(TOKEN_KEY)
+}
+
+// ---------------------------------------------------------------------------
+// Core fetch wrapper
+// ---------------------------------------------------------------------------
 
 export class ApiError extends Error {
   status: number
@@ -18,16 +51,32 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getStoredToken()
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...(options.headers as Record<string, string>),
+  }
+
+  // Always send Bearer header when we have a token — this is the primary auth
+  // transport for cross-origin production (Vercel → Render).
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
+    // Also send cookies for same-origin local dev compatibility.
     credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
+    headers,
   })
 
   if (!response.ok) {
+    // If we get 401, clear the stored token so the user is redirected to login.
+    if (response.status === 401) {
+      clearStoredToken()
+    }
+
     let detail = response.statusText
     try {
       const body = await response.json()
@@ -53,22 +102,31 @@ export interface User {
   created_at: string
 }
 
+export interface AuthResponse {
+  user: User
+  access_token: string
+  access_token_expires_in_minutes: number
+}
+
 export const authApi = {
   signup: (email: string, password: string, full_name?: string) =>
-    request<{ user: User; access_token_expires_in_minutes: number }>('/auth/signup', {
+    request<AuthResponse>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password, full_name }),
     }),
   login: (email: string, password: string) =>
-    request<{ user: User; access_token_expires_in_minutes: number }>('/auth/login', {
+    request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     }),
-  logout: () => request<void>('/auth/logout', { method: 'POST' }),
+  logout: () => {
+    clearStoredToken()
+    return request<void>('/auth/logout', { method: 'POST' })
+  },
   me: () => request<User>('/auth/me'),
-  /** Re-issues the session cookie, extending its expiry (sliding session). */
+  /** Re-issues the session cookie + token, extending the sliding expiry. */
   refresh: () =>
-    request<{ user: User; access_token_expires_in_minutes: number }>('/auth/refresh', {
+    request<AuthResponse>('/auth/refresh', {
       method: 'POST',
     }),
 }
@@ -104,17 +162,20 @@ export const chatApi = {
   listConversations: () => request<Conversation[]>('/chat/conversations'),
   getConversation: (id: string) => request<ConversationDetail>(`/chat/conversations/${id}`),
 
-  /** Streams pipeline progress via SSE (fetch + ReadableStream, since
-   * EventSource can't send cookies cross-origin reliably with POST bodies). */
+  /** Streams pipeline progress via SSE. */
   stream: async (
     message: string,
     conversation_id: string | undefined,
     onEvent: (event: string, data: any) => void,
   ) => {
+    const token = getStoredToken()
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) headers['Authorization'] = `Bearer ${token}`
+
     const response = await fetch(`${API_BASE_URL}/chat/stream`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ message, conversation_id }),
     })
 
