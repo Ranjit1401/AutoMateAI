@@ -66,6 +66,11 @@ export const authApi = {
     }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   me: () => request<User>('/auth/me'),
+  /** Re-issues the session cookie, extending its expiry (sliding session). */
+  refresh: () =>
+    request<{ user: User; access_token_expires_in_minutes: number }>('/auth/refresh', {
+      method: 'POST',
+    }),
 }
 
 // ---------------------------------------------------------------------------

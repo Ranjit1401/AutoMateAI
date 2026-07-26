@@ -71,7 +71,16 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(response: Response):
-    response.delete_cookie(settings.AUTH_COOKIE_NAME, path="/")
+    is_production = settings.ENVIRONMENT.lower() == "production"
+    # Must match the same attributes used in _set_session_cookie so browsers
+    # correctly remove the cross-site SameSite=none cookie.
+    response.delete_cookie(
+        settings.AUTH_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=is_production or settings.AUTH_COOKIE_SECURE,
+        samesite="none" if is_production else "lax",
+    )
 
 
 @router.post("/refresh", response_model=AuthResponse)

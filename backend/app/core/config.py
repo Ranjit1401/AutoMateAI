@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     JWT_SECRET_KEY: str = Field(default="CHANGE_ME_IN_PRODUCTION_" + "x" * 32)
     JWT_ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours — short enough to be secure, long enough for real sessions
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     AUTH_COOKIE_NAME: str = "automateai_session"
     AUTH_COOKIE_SECURE: bool = False  # set True behind HTTPS in production
