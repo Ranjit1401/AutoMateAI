@@ -1,5 +1,8 @@
 from app.agents.base_agent import BaseAgent
+from app.core.logging_config import get_logger
 from app.schemas.router import RouterResponse
+
+logger = get_logger(__name__)
 
 
 class RouterAgent(BaseAgent):
@@ -24,4 +27,10 @@ general
 User Request:
 {user_input}"""
 
-        return self.router.invoke(prompt)
+        try:
+            return self.router.invoke(prompt)
+        except Exception:  # noqa: BLE001 - LLM unavailable must not crash the pipeline
+            logger.exception("Router LLM call failed; using fallback classification.")
+            from app.agents.fallback_data import fallback_router_response
+
+            return fallback_router_response()

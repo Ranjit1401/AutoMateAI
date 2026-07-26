@@ -1,5 +1,8 @@
 from app.agents.base_agent import BaseAgent
+from app.core.logging_config import get_logger
 from app.schemas.planner import PlannerResponse
+
+logger = get_logger(__name__)
 
 _AVAILABLE_AGENTS = (
     "travel (weather/flights/hotels), research (attractions/food/best time), "
@@ -31,4 +34,10 @@ step so it clearly indicates which specialized agent should handle it
 dining step, "itinerary" for a day-plan step, "book"/"reserve" for a
 booking step, "direction"/"route" for a maps step)."""
 
-        return self.planner.invoke(prompt)
+        try:
+            return self.planner.invoke(prompt)
+        except Exception:  # noqa: BLE001 - LLM unavailable must not crash the pipeline
+            logger.exception("Planner LLM call failed; using fallback plan.")
+            from app.agents.fallback_data import fallback_planner_response
+
+            return fallback_planner_response()

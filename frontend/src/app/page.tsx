@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Sparkles,
@@ -16,6 +16,7 @@ import {
   Plug,
   CheckCircle,
 } from 'lucide-react'
+import { API_BASE_URL, tasksApi, type Task } from '@/lib/api'
 
 const quickActions = [
   { icon: MapPin, label: 'Plan Trip', color: '#a855f7', desc: 'Research & book travel' },
@@ -42,11 +43,26 @@ interface ConnectedAppEntry {
   letter: string
 }
 
-// Populated once the backend is connected.
-const recentTasks: RecentTask[] = []
+const AGENT_ICON: Record<string, React.ElementType> = {
+  travel: MapPin,
+  research: Search,
+  itinerary: Calendar,
+  budget: BarChart3,
+  restaurant: Hotel,
+  maps: MapPin,
+  booking: FileText,
+}
 
-// Populated once the backend is connected.
-const connectedApps: ConnectedAppEntry[] = []
+function taskToRecentTask(task: Task): RecentTask {
+  const status = task.status === 'done' ? 'completed' : task.status === 'running' ? 'running' : task.status === 'pending' ? 'running' : 'waiting'
+  return {
+    icon: AGENT_ICON[task.agent] || Sparkles,
+    title: task.title || task.action,
+    status,
+    time: new Date(task.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    color: '#a855f7',
+  }
+}
 
 function StatusDot({ status }: { status: string }) {
   if (status === 'completed') {
@@ -106,6 +122,46 @@ function StatusLabel({ status }: { status: string }) {
 export default function Home() {
   const router = useRouter()
   const [prompt, setPrompt] = useState('')
+  const [backendOnline, setBackendOnline] = useState(false)
+  const [recentTasks, setRecentTasks] = useState<RecentTask[]>([])
+  const connectedApps: ConnectedAppEntry[] = []
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function checkHealth() {
+      try {
+        const res = await fetch(`${API_BASE_URL}/health`, { credentials: 'include' })
+        if (!cancelled) setBackendOnline(res.ok)
+      } catch {
+        if (!cancelled) setBackendOnline(false)
+      }
+    }
+
+    async function loadTasks() {
+      try {
+        const tasks = await tasksApi.list()
+        if (!cancelled) setRecentTasks(tasks.slice(0, 5).map(taskToRecentTask))
+      } catch {
+        // Not logged in yet, or no tasks - leave the empty state as-is.
+      }
+    }
+
+    checkHealth()
+    loadTasks()
+    const interval = setInterval(checkHealth, 15000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [])
+
+  const goToChatWithPrompt = () => {
+    const text = prompt.trim()
+    if (!text) return
+    sessionStorage.setItem('automateai_pending_prompt', text)
+    router.push('/chat')
+  }
 
   return (
     <div
@@ -154,10 +210,10 @@ export default function Home() {
                 width: 6,
                 height: 6,
                 borderRadius: '50%',
-                background: '#52525b',
+                background: backendOnline ? '#10b981' : '#52525b',
               }}
             />
-            Waiting for backend connection
+            {backendOnline ? 'Backend connected' : 'Waiting for backend connection'}
           </div>
 
           <p
@@ -226,7 +282,7 @@ export default function Home() {
               value={prompt}
               onChange={e => setPrompt(e.target.value)}
               onKeyDown={e => {
-                if (e.key === 'Enter' && prompt.trim()) router.push('/chat')
+                if (e.key === 'Enter' && prompt.trim()) goToChatWithPrompt()
               }}
               placeholder="Ask AutoMateAI anything..."
               style={{
@@ -257,7 +313,7 @@ export default function Home() {
               <button
                 className="btn-primary"
                 style={{ padding: '8px 16px', fontSize: 13 }}
-                onClick={() => { if (prompt.trim()) router.push('/chat') }}
+                onClick={goToChatWithPrompt}
               >
                 <Sparkles size={13} style={{ display: 'inline', marginRight: 6 }} />
                 Send
@@ -482,10 +538,12 @@ export default function Home() {
                     width: 8,
                     height: 8,
                     borderRadius: '50%',
-                    background: '#52525b',
+                    background: backendOnline ? '#10b981' : '#52525b',
                   }}
                 />
-                <span style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>Backend Offline</span>
+                <span style={{ fontSize: 13, fontWeight: 600, color: 'white' }}>
+                  {backendOnline ? 'Backend Online' : 'Backend Offline'}
+                </span>
               </div>
 
               <div
@@ -496,7 +554,9 @@ export default function Home() {
                   lineHeight: 1.6,
                 }}
               >
-                Waiting for backend connection.
+                {backendOnline
+                  ? 'Connected to AutoMateAI backend. All agents ready.'
+                  : 'Waiting for backend connection.'}
               </div>
             </div>
 

@@ -8,7 +8,10 @@ that was previously broken (conversation_history was stored but never
 actually read by any agent).
 """
 from app.agents.base_agent import BaseAgent
+from app.core.logging_config import get_logger
 from app.schemas.memory_extraction import MemoryExtraction
+
+logger = get_logger(__name__)
 
 
 class MemoryAgent(BaseAgent):
@@ -22,4 +25,10 @@ class MemoryAgent(BaseAgent):
             "the user that would be useful to remember in future conversations.\n\n"
             f"Message:\n{user_input}"
         )
-        return self._parser.invoke(prompt)
+        try:
+            return self._parser.invoke(prompt)
+        except Exception:  # noqa: BLE001 - memory extraction is best-effort
+            logger.exception("Memory extraction LLM call failed; skipping this turn.")
+            from app.agents.fallback_data import fallback_memory_extraction
+
+            return fallback_memory_extraction()

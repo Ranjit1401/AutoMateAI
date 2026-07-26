@@ -7,10 +7,10 @@ that duplication has been removed. Every setting the app needs, from every
 integration, lives here and nowhere else.
 """
 from functools import lru_cache
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     # ------------------------------------------------------------------
     # CORS
     # ------------------------------------------------------------------
-    CORS_ORIGINS: List[str] = ["http://localhost:3000"]
+    CORS_ORIGINS: Annotated[List[str], NoDecode] = ["http://localhost:3000"]
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
@@ -67,6 +67,10 @@ class Settings(BaseSettings):
     OPENWEATHER_API_KEY: Optional[str] = None
     SERPAPI_API_KEY: Optional[str] = None
     GOOGLE_MAPS_API_KEY: Optional[str] = None
+    # Tavily Search API — used by research_agent and restaurant_agent
+    # for real, cited web search results (not LLM hallucination).
+    # Get a free key at https://app.tavily.com
+    TAVILY_API_KEY: Optional[str] = None
 
     # ------------------------------------------------------------------
     # Vapi (Voice AI)
@@ -91,7 +95,7 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: Optional[str] = None
     GOOGLE_CLIENT_SECRET: Optional[str] = None
     GOOGLE_REDIRECT_URI: str = "http://localhost:8000/google/oauth/callback"
-    GOOGLE_SCOPES: List[str] = [
+    GOOGLE_SCOPES: Annotated[List[str], NoDecode] = [
         "https://www.googleapis.com/auth/gmail.send",
         "https://www.googleapis.com/auth/calendar",
         "https://www.googleapis.com/auth/drive.file",

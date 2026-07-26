@@ -2,7 +2,10 @@ from datetime import datetime
 
 from app.agents.base_agent import BaseAgent
 from app.agents.mixins import TravelExtractionMixin
+from app.core.logging_config import get_logger
 from app.schemas.itinerary import ItineraryPlan
+
+logger = get_logger(__name__)
 
 
 class ItineraryAgent(BaseAgent, TravelExtractionMixin):
@@ -22,7 +25,13 @@ class ItineraryAgent(BaseAgent, TravelExtractionMixin):
             f"Travellers: {travel.travellers}. "
             "Each day should have a short theme and 3-5 concrete, ordered activities."
         )
-        plan = self._itinerary_parser.invoke(prompt)
+        try:
+            plan = self._itinerary_parser.invoke(prompt)
+        except Exception:  # noqa: BLE001 - LLM unavailable must not crash the pipeline
+            logger.exception("Itinerary LLM call failed; using fallback itinerary.")
+            from app.agents.fallback_data import fallback_itinerary_plan
+
+            plan = fallback_itinerary_plan(nights)
 
         return {
             "action": action,

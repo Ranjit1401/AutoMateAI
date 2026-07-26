@@ -22,12 +22,16 @@ function MessageContent({ content }: { content: string }) {
   return (
     <div style={{ lineHeight: 1.75 }}>
       {lines.map((line, i) => {
-        const boldProcessed = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        let processed = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        processed = processed.replace(
+          /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g,
+          '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:#a855f7;text-decoration:underline;">$1</a>',
+        )
         return (
           <p
             key={i}
             style={{ margin: '2px 0', fontSize: 14, color: 'white' }}
-            dangerouslySetInnerHTML={{ __html: boldProcessed || '&nbsp;' }}
+            dangerouslySetInnerHTML={{ __html: processed || '&nbsp;' }}
           />
         )
       })}
@@ -57,9 +61,21 @@ export default function Chat() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, statusLabel])
 
-  const handleSend = async () => {
-    const text = input.trim()
-    if (!text || statusLabel) return
+  // Pick up a prompt typed on the homepage (see app/page.tsx) and send it
+  // automatically on arrival, instead of silently dropping it.
+  useEffect(() => {
+    const pending = typeof window !== 'undefined' ? sessionStorage.getItem('automateai_pending_prompt') : null
+    if (pending) {
+      sessionStorage.removeItem('automateai_pending_prompt')
+      setInput(pending)
+      // Defer to next tick so handleSend reads the just-set input via a ref-safe path.
+      setTimeout(() => sendMessage(pending), 0)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const sendMessage = async (text: string) => {
+    if (!text.trim() || statusLabel) return
 
     setMessages((prev) => [...prev, { role: 'user', content: text }])
     setInput('')
@@ -84,6 +100,12 @@ export default function Chat() {
       setError(err instanceof ApiError ? err.message : 'Failed to reach AutoMateAI. Please try again.')
       setStatusLabel(null)
     }
+  }
+
+  const handleSend = async () => {
+    const text = input.trim()
+    if (!text || statusLabel) return
+    await sendMessage(text)
   }
 
   return (
