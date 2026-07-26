@@ -14,12 +14,21 @@ logger = get_logger(__name__)
 
 def _set_session_cookie(response: Response, user_id: str) -> None:
     token = create_access_token(user_id)
+    # Cross-origin deployments (Vercel frontend + Render backend) require
+    # SameSite=none so the browser will attach the cookie on cross-site
+    # requests.  SameSite=none mandates Secure=True per the browser spec.
+    # For local dev (same-origin localhost) lax is fine, but none+secure
+    # also works in localhost over HTTPS, so we always use none in production.
+    is_production = settings.ENVIRONMENT.lower() == "production"
+    samesite_value = "none" if is_production else "lax"
+    secure_value   = True   if is_production else settings.AUTH_COOKIE_SECURE
+
     response.set_cookie(
         key=settings.AUTH_COOKIE_NAME,
         value=token,
         httponly=True,
-        secure=settings.AUTH_COOKIE_SECURE,
-        samesite="lax",
+        secure=secure_value,
+        samesite=samesite_value,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -62,7 +71,16 @@ def login(payload: LoginRequest, response: Response, db: Session = Depends(get_d
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(response: Response):
-    response.delete_cookie(settings.AUTH_COOKIE_NAME, path="/")
+    is_production = settings.ENVIRONMENT.lower() == "production"
+    # Must match the same attributes used in _set_session_cookie so browsers
+    # correctly remove the cross-site SameSite=none cookie.
+    response.delete_cookie(
+        settings.AUTH_COOKIE_NAME,
+        path="/",
+        httponly=True,
+        secure=is_production or settings.AUTH_COOKIE_SECURE,
+        samesite="none" if is_production else "lax",
+    )
 
 
 @router.post("/refresh", response_model=AuthResponse)
