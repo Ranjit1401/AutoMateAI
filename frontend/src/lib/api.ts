@@ -109,16 +109,25 @@ export interface AuthResponse {
 }
 
 export const authApi = {
-  signup: (email: string, password: string, full_name?: string) =>
-    request<AuthResponse>('/auth/signup', {
+  signup: async (email: string, password: string, full_name?: string) => {
+    const data = await request<AuthResponse>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify({ email, password, full_name }),
-    }),
-  login: (email: string, password: string) =>
-    request<AuthResponse>('/auth/login', {
+    });
+
+    setStoredToken(data.access_token);
+    return data;
+    },
+
+  login: async (email: string, password: string) => {
+    const data = await request<AuthResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
-    }),
+    });
+
+    setStoredToken(data.access_token);
+    return data;
+    },
   logout: () => {
     clearStoredToken()
     return request<void>('/auth/logout', { method: 'POST' })
