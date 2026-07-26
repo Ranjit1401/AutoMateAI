@@ -25,4 +25,5 @@ class UserOut(BaseModel):
 
 class AuthResponse(BaseModel):
     user: UserOut
+    access_token: str
     access_token_expires_in_minutes: int
