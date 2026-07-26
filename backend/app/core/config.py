@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     AUTH_COOKIE_NAME: str = "automateai_session"
-    AUTH_COOKIE_SECURE: bool = False  # set True behind HTTPS in production
+    AUTH_COOKIE_SECURE: bool = True  # set True behind HTTPS in production
 
     # ------------------------------------------------------------------
     # CORS
