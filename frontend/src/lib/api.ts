@@ -189,7 +189,7 @@ export const chatApi = {
     })
 
     if (!response.ok || !response.body) {
-      throw new ApiError(response.status, 'Failed to start chat stream')
+      throw new ApiError(response.status, 'Please Login Before Start , use profile tab to get login  || For admin use email = admin@gmail.com and password = admin')
     }
 
     const reader = response.body.getReader()
