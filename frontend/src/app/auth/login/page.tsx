@@ -3,8 +3,8 @@
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { loginAndStore, ApiError } from '@/lib/api'
-
+import { loginAndStore } from '@/lib/auth'
+import { ApiError } from '@/lib/api'
 export default function LoginPage() {
   const router = useRouter()
   const [email, setEmail] = useState('')

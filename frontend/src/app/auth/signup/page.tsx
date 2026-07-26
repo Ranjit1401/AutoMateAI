@@ -3,8 +3,8 @@
 import { useState, FormEvent } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { signupAndStore, ApiError } from '@/lib/auth'
-
+import { signupAndStore } from '@/lib/auth'
+import { ApiError } from '@/lib/api'
 export default function SignupPage() {
   const router = useRouter()
   const [name, setName] = useState('')
